@@ -1,0 +1,46 @@
+version: "3.8"
+services:
+  # 1. Cơ sở dữ liệu PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: rootpassword
+      POSTGRES_DB: vod_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  # 2. Hệ thống lưu trữ MinIO
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: adminpassword
+    ports:
+      - "9000:9000" # Port cho API (Code gọi vào đây)
+      - "9001:9001" # Port cho Giao diện Web (Em dùng trình duyệt vào xem file)
+    volumes:
+      - miniodata:/data
+
+  # 3. Message Queue RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: adminpassword
+    ports:
+      - "5672:5672" # Port cho API đẩy message
+      - "15672:15672" # Port cho Giao diện Web (Quản lý queue)
+
+  # 4. Cache Redis
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  pgdata:
+  miniodata:
