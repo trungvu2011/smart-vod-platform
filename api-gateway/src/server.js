@@ -6,6 +6,8 @@ require("dotenv").config();
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
+require("./config/minio");
+
 const app = express();
 
 const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
@@ -16,8 +18,10 @@ app.use(express.json());
 
 // Import và sử dụng các route
 const authRoutes = require("./routes/auth.routes");
+const videoRoutes = require("./routes/video.routes");
 
 app.use("/api/auth", authRoutes);
+app.use("/api/videos", videoRoutes);
 
 const PORT = process.env.PORT || 5000;
 
