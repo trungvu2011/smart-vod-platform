@@ -1,12 +1,19 @@
 const express = require("express");
 const router = express.Router();
 
-const { uploadVideo } = require("../controllers/video.controller");
+const {
+  uploadVideo,
+  getAllVideos,
+  getVideoById,
+} = require("../controllers/video.controller");
 const { verifyToken } = require("../middlewares/auth.middleware");
 const upload = require("../middlewares/upload.middleware");
 
-// Tuyến đường Upload:
-// 1. Phải có thẻ (verifyToken) -> 2. Hứng file (upload.single) -> 3. Xử lý lưu (uploadVideo)
+// API Public: Bất kỳ ai vào web cũng xem được danh sách video (Không cần anh bảo vệ)
+router.get("/", getAllVideos);
+router.get("/:id", getVideoById);
+
+// API Protected: Chỉ người có thẻ (Token) mới được Upload
 router.post("/upload", verifyToken, upload.single("videoFile"), uploadVideo);
 
 module.exports = router;

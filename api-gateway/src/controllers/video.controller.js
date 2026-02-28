@@ -68,4 +68,54 @@ const uploadVideo = async (req, res) => {
   }
 };
 
-module.exports = { uploadVideo };
+// [GET] Lấy danh sách toàn bộ Video (Hiển thị trang chủ)
+const getAllVideos = async (req, res) => {
+  try {
+    const videos = await prisma.video.findMany({
+      orderBy: {
+        created_at: "desc", // Sắp xếp video mới nhất lên đầu
+      },
+      include: {
+        // Tự động JOIN sang bảng User để lấy username
+        user: {
+          select: { username: true },
+        },
+      },
+    });
+
+    res.status(200).json({
+      message: "Lấy danh sách video thành công",
+      videos,
+    });
+  } catch (error) {
+    console.error("❌ Lỗi lấy danh sách video:", error);
+    res.status(500).json({ message: "Lỗi server khi lấy danh sách video" });
+  }
+};
+
+// [GET] Lấy chi tiết 1 Video (Khi user click vào xem)
+const getVideoById = async (req, res) => {
+  try {
+    const { id } = req.params; // Lấy ID từ trên thanh URL
+
+    const video = await prisma.video.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: { username: true },
+        },
+      },
+    });
+
+    if (!video) {
+      return res.status(404).json({ message: "Không tìm thấy video này!" });
+    }
+
+    res.status(200).json({ video });
+  } catch (error) {
+    console.error("❌ Lỗi lấy chi tiết video:", error);
+    res.status(500).json({ message: "Lỗi server khi lấy chi tiết video" });
+  }
+};
+
+module.exports = { uploadVideo, getAllVideos, getVideoById };
