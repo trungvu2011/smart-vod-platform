@@ -1,6 +1,7 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const minioClient = require("../config/minio");
+const videoQueue = require("../config/queue");
 const path = require("path");
 const crypto = require("crypto");
 
@@ -56,6 +57,12 @@ const uploadVideo = async (req, res) => {
         raw_url: rawUrl,
         status: "pending", // Chờ hệ thống Worker lấy đi xử lý HLS
       },
+    });
+
+    // 6. Gửi tin nhắn vào BullMQ để Worker biết có video mới cần xử lý
+    await videoQueue.add("process-hls", {
+      videoId: newVideo.id,
+      originalFilename: uniqueFilename,
     });
 
     res.status(201).json({
