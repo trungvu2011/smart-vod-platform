@@ -53,9 +53,9 @@ const uploadVideo = async (req, res) => {
         user_id: userId,
         title: title,
         description: description || "",
-        original_filename: req.file.originalname,
         raw_url: rawUrl,
-        status: "pending", // Chờ hệ thống Worker lấy đi xử lý HLS
+        status: "pending", // Khớp với Enum VideoStatus
+        visibility: "public", // Khớp với Enum Visibility mới thêm
       },
     });
 
@@ -104,12 +104,23 @@ const getAllVideos = async (req, res) => {
 const getVideoById = async (req, res) => {
   try {
     const { id } = req.params; // Lấy ID từ trên thanh URL
+    const userId = req.user ? req.user.id : null; // Có được nếu dùng optionalAuth
 
     const video = await prisma.video.findUnique({
       where: { id },
       include: {
         user: {
-          select: { username: true },
+          select: {
+            id: true,
+            username: true,
+            avatar_url: true,
+            _count: { select: { subscribers: true } },
+          },
+        },
+        _count: {
+          select: {
+            interactions: { where: { type: "like" } },
+          },
         },
       },
     });
@@ -118,11 +129,135 @@ const getVideoById = async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy video này!" });
     }
 
-    res.status(200).json({ video });
+    // Đếm số dislike
+    const dislikeCount = await prisma.interaction.count({
+      where: { video_id: id, type: "dislike" },
+    });
+
+    let hasLiked = false;
+    let hasDisliked = false;
+    let isSubscribed = false;
+
+    if (userId) {
+      // Thêm vào Lịch sử Xem
+      await prisma.watchHistory.upsert({
+        where: {
+          user_id_video_id: {
+            user_id: userId,
+            video_id: id,
+          },
+        },
+        update: { watched_at: new Date() },
+        create: { user_id: userId, video_id: id },
+      });
+
+      // Kiểm tra lượt Like, Dislike
+      const interaction = await prisma.interaction.findUnique({
+        where: { user_id_video_id: { user_id: userId, video_id: id } },
+      });
+      if (interaction) {
+        if (interaction.type === "like") hasLiked = true;
+        if (interaction.type === "dislike") hasDisliked = true;
+      }
+
+      // Kiểm tra đăng ký kênh
+      const subscription = await prisma.subscription.findUnique({
+        where: {
+          subscriber_id_channel_id: {
+            subscriber_id: userId,
+            channel_id: video.user_id,
+          },
+        },
+      });
+      if (subscription) {
+        isSubscribed = true;
+      }
+    }
+
+    // Tăng lượt xem (không bắt buộc nhưng tốt cho platform)
+    await prisma.video.update({
+      where: { id },
+      data: { views: { increment: 1 } },
+    });
+
+    video.views += 1;
+
+    res.status(200).json({
+      video: {
+        ...video,
+        likes: video._count.interactions,
+        dislikes: dislikeCount,
+        channel: {
+          ...video.user,
+          totalSubscribers: video.user._count.subscribers,
+        },
+      },
+      hasLiked,
+      hasDisliked,
+      isSubscribed,
+    });
   } catch (error) {
     console.error("❌ Lỗi lấy chi tiết video:", error);
     res.status(500).json({ message: "Lỗi server khi lấy chi tiết video" });
   }
 };
 
-module.exports = { uploadVideo, getAllVideos, getVideoById };
+// [GET] Danh sách bình luận của 1 video
+const getVideoComments = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const comments = await prisma.comment.findMany({
+      where: { video_id: id },
+      orderBy: { created_at: "desc" },
+      include: {
+        user: {
+          select: { id: true, username: true, avatar_url: true },
+        },
+      },
+    });
+    res.status(200).json({ message: "Lấy bình luận thành công", comments });
+  } catch (error) {
+    console.error("❌ Lỗi lấy bình luận:", error);
+    res.status(500).json({ message: "Lỗi server khi lấy bình luận" });
+  }
+};
+
+// [GET] Tìm kiếm Video
+const searchVideos = async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q) {
+      return res
+        .status(400)
+        .json({ message: "Vui lòng nhập từ khóa tìm kiếm (q)!" });
+    }
+
+    const videos = await prisma.video.findMany({
+      where: {
+        status: "ready",
+        visibility: "public",
+        title: {
+          contains: q,
+          mode: "insensitive", // PostgreSQL only
+        },
+      },
+      orderBy: { created_at: "desc" },
+      include: {
+        user: { select: { id: true, username: true, avatar_url: true } },
+      },
+    });
+
+    res.status(200).json({ message: "Tìm kiếm video thành công", videos });
+  } catch (error) {
+    console.error("❌ Lỗi tìm kiếm video:", error);
+    res.status(500).json({ message: "Lỗi server khi tìm kiếm video" });
+  }
+};
+
+module.exports = {
+  uploadVideo,
+  getAllVideos,
+  getVideoById,
+  getVideoComments,
+  searchVideos,
+};

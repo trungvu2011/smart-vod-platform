@@ -7,20 +7,8 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// 1. Model Người dùng
-model User {
-  id            Int       @id @default(autoincrement())
-  username      String    @unique @db.VarChar(50)
-  email         String    @unique @db.VarChar(100)
-  password_hash String    @db.VarChar(255)
-  refresh_token String?   @db.Text
-  created_at    DateTime  @default(now())
-  updated_at    DateTime  @updatedAt
-  
-  videos        Video[]   // Một user có nhiều video
-}
+// --- CÁC BỘ LUẬT ENUM ---
 
-// 2. Enum Trạng thái Video
 enum VideoStatus {
   pending
   uploading
@@ -29,33 +17,132 @@ enum VideoStatus {
   failed
 }
 
-// 3. Model Video
+enum Visibility {
+  public    // Ai cũng xem được, hiện trên trang chủ
+  private   // Chỉ mình mới xem được
+  unlisted  // Ai có link mới xem được (Không hiện trên thanh tìm kiếm)
+}
+
+enum InteractionType {
+  like
+  dislike
+}
+
+// --- CÁC BẢNG DỮ LIỆU CHÍNH ---
+
+model User {
+  id            String   @id @default(uuid())
+  username      String   @unique
+  email         String   @unique
+  password_hash String
+  refresh_token String?
+  
+  // Thông tin trang cá nhân (Channel)
+  avatar_url    String?  // Link ảnh đại diện
+  bio           String?  // Giới thiệu bản thân
+  
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  // Mối quan hệ (Relations)
+  videos        Video[]
+  comments      Comment[]
+  interactions  Interaction[]
+  watch_history WatchHistory[]
+  
+  // Follow (Người dùng đăng ký kênh của nhau)
+  subscribers   Subscription[] @relation("ChannelSubscribers")
+  subscribed_to Subscription[] @relation("UserSubscriptions")
+}
+
 model Video {
-  id                String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id           Int
-  title             String      @db.VarChar(255)
-  description       String?     // Dấu ? nghĩa là có thể để trống (NULL)
-  original_filename String      @db.VarChar(255)
-  raw_url           String?     @db.VarChar(500)
-  hls_url           String?     @db.VarChar(500)
+  id                String      @id @default(uuid())
+  title             String
+  description       String?     @db.Text
+  
+  // Đường dẫn File
+  raw_url           String      // File gốc mp4
+  hls_url           String?     // File luồng m3u8
+  thumbnail_url     String?     // Ảnh bìa video 
+  
+  // Trạng thái & Phân loại
   status            VideoStatus @default(pending)
-  processing_progress Int       @default(0)
-  error_message     String?
-  duration          Float?
+  visibility        Visibility  @default(public)
+  
+  // Chỉ số thống kê
+  views             Int         @default(0) // Số lượt xem
+  duration          Int?        // Thời lượng video (tính bằng giây)
+  
   created_at        DateTime    @default(now())
   updated_at        DateTime    @updatedAt
 
+  // Mối quan hệ
+  user_id           String
   user              User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  subtitles         Subtitle[]
+  comments          Comment[]
+  interactions      Interaction[]
+  watch_history     WatchHistory[]
 }
 
-// 4. Model Phụ đề
-model Subtitle {
-  id            Int      @id @default(autoincrement())
-  video_id      String   @db.Uuid
-  language_code String   @default("vi") @db.VarChar(10)
-  vtt_url       String   @db.VarChar(500)
+// --- CÁC BẢNG TƯƠNG TÁC (SOCIAL FEATURES) ---
+
+model Comment {
+  id          String   @id @default(uuid())
+  content     String   @db.Text
+  
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  user_id     String
+  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  
+  video_id    String
+  video       Video    @relation(fields: [video_id], references: [id], onDelete: Cascade)
+}
+
+model Interaction {
+  id          String          @id @default(uuid())
+  type        InteractionType 
+  
+  created_at  DateTime        @default(now())
+
+  user_id     String
+  user        User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  
+  video_id    String
+  video       Video           @relation(fields: [video_id], references: [id], onDelete: Cascade)
+
+  // Một User chỉ được Like/Dislike 1 Video một lần duy nhất
+  @@unique([user_id, video_id]) 
+}
+
+model Subscription {
+  id            String   @id @default(uuid())
   created_at    DateTime @default(now())
 
-  video         Video    @relation(fields: [video_id], references: [id], onDelete: Cascade)
+  // Người đi đăng ký (Khán giả)
+  subscriber_id String
+  subscriber    User     @relation("UserSubscriptions", fields: [subscriber_id], references: [id], onDelete: Cascade)
+  
+  // Kênh được đăng ký (Tác giả)
+  channel_id    String
+  channel       User     @relation("ChannelSubscribers", fields: [channel_id], references: [id], onDelete: Cascade)
+
+  // Một người chỉ được subscribe 1 kênh 1 lần
+  @@unique([subscriber_id, channel_id])
+}
+
+model WatchHistory {
+  id          String   @id @default(uuid())
+  watched_at  DateTime @default(now()) // Thời điểm xem cuối cùng
+  progress    Int      @default(0)     // Lưu số giây đang xem dở 
+
+  user_id     String
+  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  
+  video_id    String
+  video       Video    @relation(fields: [video_id], references: [id], onDelete: Cascade)
+
+  // Cập nhật lại thời gian thay vì đẻ ra dòng mới
+  @@unique([user_id, video_id]) 
 }

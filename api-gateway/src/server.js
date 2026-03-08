@@ -19,9 +19,15 @@ app.use(express.json());
 // Import và sử dụng các route
 const authRoutes = require("./routes/auth.routes");
 const videoRoutes = require("./routes/video.routes");
+const userRoutes = require("./routes/user.routes");
+const studioRoutes = require("./routes/studio.routes");
+const channelRoutes = require("./routes/channel.routes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/videos", videoRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/studio", studioRoutes);
+app.use("/api/channels", channelRoutes);
 
 const PORT = process.env.PORT || 5000;
 
