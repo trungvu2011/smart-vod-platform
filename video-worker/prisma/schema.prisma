@@ -82,6 +82,10 @@ model Video {
   comments          Comment[]
   interactions      Interaction[]
   watch_history     WatchHistory[]
+
+  // AI FEATURES
+  transcript_url    String?     @db.Text // Link file phụ đề .vtt lưu trên MinIO
+  ai_summary        String?     @db.Text // Tóm tắt do LLM viết
 }
 
 // --- CÁC BẢNG TƯƠNG TÁC (SOCIAL FEATURES) ---

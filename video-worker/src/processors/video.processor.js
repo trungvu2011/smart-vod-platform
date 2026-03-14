@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const minioClient = require("../config/minio");
+const aiService = require("../services/ai.service");
 
 const ffmpeg = require("fluent-ffmpeg");
 const ffmpegInstaller = require("@ffmpeg-installer/ffmpeg");
@@ -56,20 +57,32 @@ const processVideo = async (job) => {
       }
     }
 
+    console.log(
+      "🧠 [4.5] Đang nhờ AI nghe và chép chính tả (Whisper Local)...",
+    );
+    const aiResult = await aiService.runLocalWhisper(
+      inputFilePath,
+      tempDir,
+      minioClient,
+    );
+
     // 5. Làm việc xong phải rửa "thớt" (Xóa file tạm kẻo sập ổ cứng)
     fs.rmSync(tempDir, { recursive: true, force: true });
     console.log(`✅ HOÀN TẤT XỬ LÝ VIDEO ID: ${videoId}\n`);
 
     // Trả về đường link của file thực đơn (.m3u8) để sau này Frontend phát video
     return {
-      hlsUrl: `http://${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT}/${bucketName}/hls/${videoId}/master.m3u8`,
+      hlsUrl: `${process.env.MINIO_PUBLIC_URL}/${bucketName}/hls/${videoId}/master.m3u8`,
+      ...(aiResult && {
+        transcriptUrl: aiResult.transcript_url,
+        aiSummary: aiResult.ai_summary,
+      }),
     };
   } catch (error) {
     console.error(`❌ LỖI XỬ LÝ VIDEO ${videoId}:`, error);
-    // Nếu lỗi, phải rửa sạch "thớt" trước khi báo cáo thất bại
     if (fs.existsSync(tempDir))
       fs.rmSync(tempDir, { recursive: true, force: true });
-    throw error; // Quăng lỗi để Hộp thư BullMQ biết mà dán nhãn "Failed"
+    throw error;
   }
 };
 

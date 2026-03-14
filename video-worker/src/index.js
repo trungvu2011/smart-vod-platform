@@ -18,6 +18,7 @@ const worker = new Worker(
   {
     connection: redisConnection,
     concurrency: 1, // Chỉ xử lý 1 video tại một thời điểm để tránh nổ RAM/CPU server
+    lockDuration: 300000,
   },
 );
 

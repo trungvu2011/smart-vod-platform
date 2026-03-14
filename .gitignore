@@ -13,3 +13,10 @@ video-worker/.env
 npm-debug.log*
 video-worker/temp/
 my-api-test
+
+# --- AI & Temp Files ---
+whisper-env/
+temp/
+audio.mp3
+audio.vtt
+*.mp4
