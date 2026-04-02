@@ -1,7 +1,11 @@
 const jwt = require("jsonwebtoken");
 
+/**
+ * verifyToken - Middleware xác thực JWT bắt buộc.
+ * Lấy token từ header: Authorization: Bearer <token>
+ * Giải mã và gắn payload (id, email, role) vào req.user.
+ */
 const verifyToken = (req, res, next) => {
-  // Lấy token từ header (chuẩn là: Authorization: Bearer <token>)
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
 
@@ -12,13 +16,10 @@ const verifyToken = (req, res, next) => {
   }
 
   try {
-    // Giải mã token xem có hợp lệ/hết hạn không
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    // Dán thông tin user (đã giải mã) vào request để các hàm phía sau xài
+    // decoded chứa: { id, email, role, iat, exp }
     req.user = decoded;
-
-    next(); // Cho phép đi tiếp vào Controller
+    next();
   } catch (error) {
     return res
       .status(403)
@@ -26,6 +27,11 @@ const verifyToken = (req, res, next) => {
   }
 };
 
+/**
+ * optionalAuth - Middleware xác thực tùy chọn.
+ * Nếu có token hợp lệ → gắn req.user.
+ * Nếu không có hoặc token lỗi → req.user = null, vẫn cho đi tiếp.
+ */
 const optionalAuth = (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];

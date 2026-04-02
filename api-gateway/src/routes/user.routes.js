@@ -1,10 +1,10 @@
 const express = require("express");
 const router = express.Router();
-const { getHistory, getSubscriptions } = require("../controllers/user.controller");
+const { getHistory, upsertHistory } = require("../controllers/user.controller");
 const { verifyToken } = require("../middlewares/auth.middleware");
 
-// Cần đăng nhập
+// Tất cả route user đều cần đăng nhập
 router.get("/history", verifyToken, getHistory);
-router.get("/subscriptions", verifyToken, getSubscriptions);
+router.post("/history", verifyToken, upsertHistory);
 
 module.exports = router;

@@ -1,47 +1,58 @@
 const express = require("express");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 require("dotenv").config();
 
-// Import Prisma Client
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+// Import Prisma Client (Singleton)
+const prisma = require("./config/prisma");
 
+// Khởi tạo MinIO bucket
 require("./config/minio");
 
 const app = express();
 
 const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
 
-// Middlewares
+// ====================================
+// MIDDLEWARES
+// ====================================
 app.use(cors({ origin: frontendUrl, credentials: true }));
 app.use(express.json());
+app.use(cookieParser());
 
-// Import và sử dụng các route
+// ====================================
+// ROUTES
+// ====================================
 const authRoutes = require("./routes/auth.routes");
+const adminRoutes = require("./routes/admin.routes");
 const videoRoutes = require("./routes/video.routes");
 const userRoutes = require("./routes/user.routes");
-const studioRoutes = require("./routes/studio.routes");
-const channelRoutes = require("./routes/channel.routes");
 
 app.use("/api/auth", authRoutes);
+app.use("/api/admin", adminRoutes);
 app.use("/api/videos", videoRoutes);
 app.use("/api/users", userRoutes);
-app.use("/api/studio", studioRoutes);
-app.use("/api/channels", channelRoutes);
 
+// ====================================
+// GLOBAL ERROR HANDLER (phải đặt cuối cùng)
+// ====================================
+const { errorHandler } = require("./middlewares/error.middleware");
+app.use(errorHandler);
+
+// ====================================
+// START SERVER
+// ====================================
 const PORT = process.env.PORT || 5000;
 
-// Khởi chạy server và Test kết nối DB bằng Prisma
 app.listen(PORT, async () => {
   console.log(`🚀 API Gateway đang chạy tại http://localhost:${PORT}`);
 
   try {
-    // Thử kết nối vào Database thông qua Prisma
     await prisma.$connect();
     console.log("✅ Kết nối Database PostgreSQL bằng Prisma THÀNH CÔNG!");
   } catch (err) {
     console.error(
-      "❌ LỖI KẾT NỐI DATABASE. Vui lòng kiểm tra lại file .env hoặc Docker!",
+      "❌ LỖI KẾT NỐI DATABASE. Vui lòng kiểm tra lại file .env hoặc Docker!"
     );
     console.error(err);
   }

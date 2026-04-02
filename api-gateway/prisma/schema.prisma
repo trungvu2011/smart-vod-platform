@@ -1,3 +1,6 @@
+// =========================================
+// CẤU HÌNH DATABASE
+// =========================================
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,146 +10,146 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// --- CÁC BỘ LUẬT ENUM ---
+// =========================================
+// ENUMS
+// =========================================
+enum Role {
+  USER
+  ADMIN
+}
 
 enum VideoStatus {
-  pending
-  uploading
-  processing
-  ready
-  failed
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+  BANNED
 }
 
-enum Visibility {
-  public    // Ai cũng xem được, hiện trên trang chủ
-  private   // Chỉ mình mới xem được
-  unlisted  // Ai có link mới xem được (Không hiện trên thanh tìm kiếm)
-}
-
-enum InteractionType {
-  like
-  dislike
-}
-
-// --- CÁC BẢNG DỮ LIỆU CHÍNH ---
+// =========================================
+// MODELS
+// =========================================
 
 model User {
-  id            String   @id @default(uuid())
-  username      String   @unique
-  email         String   @unique
-  password_hash String
-  refresh_token String?
-  
-  // Thông tin trang cá nhân (Channel)
-  avatar_url    String?  // Link ảnh đại diện
-  bio           String?  // Giới thiệu bản thân
-  
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
+  id            String         @id @default(uuid()) @map("user_id")
+  fullName      String         @db.VarChar(100) @map("full_name")
+  email         String         @unique @db.VarChar(150)
+  passwordHash  String         @db.VarChar(255) @map("password_hash")
+  role          Role           @default(USER)
+  avatarUrl     String?        @map("avatar_url")
+  createdAt     DateTime       @default(now()) @map("created_at")
 
-  // Mối quan hệ (Relations)
-  videos        Video[]
-  comments      Comment[]
-  interactions  Interaction[]
-  watch_history WatchHistory[]
-  
-  // Follow (Người dùng đăng ký kênh của nhau)
-  subscribers   Subscription[] @relation("ChannelSubscribers")
-  subscribed_to Subscription[] @relation("UserSubscriptions")
+  // --- Quan hệ ---
+  videos        Video[]        // Video đã đăng
+  comments      Comment[]      // Bình luận đã viết
+  likes         Like[]         // Các lượt Like
+  playlists     Playlist[]     // Danh sách phát tự tạo
+  watchHistory  WatchHistory[] // Lịch sử xem
+
+  @@map("users")
 }
 
 model Video {
-  id                String      @id @default(uuid())
-  title             String
-  description       String?     @db.Text
-  
-  // Đường dẫn File
-  raw_url           String      // File gốc mp4
-  hls_url           String?     // File luồng m3u8
-  thumbnail_url     String?     // Ảnh bìa video 
-  
-  // Trạng thái & Phân loại
-  status            VideoStatus @default(pending)
-  visibility        Visibility  @default(public)
-  
-  // Chỉ số thống kê
-  views             Int         @default(0) // Số lượt xem
-  duration          Int?        // Thời lượng video (tính bằng giây)
-  
-  created_at        DateTime    @default(now())
-  updated_at        DateTime    @updatedAt
+  id              String      @id @default(uuid()) @map("video_id")
+  creatorId       String      @map("creator_id")
+  title           String      @db.VarChar(255)
+  description     String?     @db.Text
+  thumbnailUrl    String?     @map("thumbnail_url")
+  status          VideoStatus @default(PENDING)
+  viewCount       Int         @default(0) @map("view_count")
+  createdAt       DateTime    @default(now()) @map("created_at")
 
-  // Mối quan hệ
-  user_id           String
-  user              User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  comments          Comment[]
-  interactions      Interaction[]
-  watch_history     WatchHistory[]
+  // --- Quan hệ ---
+  creator         User           @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  metadata        VideoMetadata?
+  comments        Comment[]
+  likes           Like[]
+  playlistItems   PlaylistItem[]
+  watchHistory    WatchHistory[]
 
-  // AI FEATURES
-  transcript_url    String?     @db.Text // Link file phụ đề .vtt lưu trên MinIO
-  ai_summary        String?     @db.Text // Tóm tắt do LLM viết
+  @@map("videos")
 }
 
-// --- CÁC BẢNG TƯƠNG TÁC (SOCIAL FEATURES) ---
+model VideoMetadata {
+  id                 String  @id @default(uuid()) @map("metadata_id")
+  videoId            String  @unique @map("video_id")
+  hlsMasterUrl       String? @map("hls_master_url")
+  subtitleUrl        String? @map("subtitle_url")
+  aiSummary          String? @db.Text @map("ai_summary")
+  duration           Int     @default(0) // Độ dài video (giây)
+  video              Video   @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@map("video_metadata")
+}
 
 model Comment {
-  id          String   @id @default(uuid())
-  content     String   @db.Text
-  
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  id        String   @id @default(uuid()) @map("comment_id")
+  content   String   @db.Text
+  videoId   String   @map("video_id")
+  userId    String   @map("user_id")
+  parentId  String?  @map("parent_id") // Để làm comment lồng nhau (reply)
+  createdAt DateTime @default(now()) @map("created_at")
 
-  user_id     String
-  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  
-  video_id    String
-  video       Video    @relation(fields: [video_id], references: [id], onDelete: Cascade)
+  // --- Quan hệ ---
+  video     Video     @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   Comment[] @relation("CommentReplies")
+
+  @@map("comments")
 }
 
-model Interaction {
-  id          String          @id @default(uuid())
-  type        InteractionType 
-  
-  created_at  DateTime        @default(now())
+model Like {
+  userId    String   @map("user_id")
+  videoId   String   @map("video_id")
+  createdAt DateTime @default(now()) @map("created_at")
 
-  user_id     String
-  user        User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  
-  video_id    String
-  video       Video           @relation(fields: [video_id], references: [id], onDelete: Cascade)
+  // --- Quan hệ ---
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video     Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
 
-  // Một User chỉ được Like/Dislike 1 Video một lần duy nhất
-  @@unique([user_id, video_id]) 
+  @@id([userId, videoId]) // Khóa chính tổ hợp: Một người chỉ like 1 video 1 lần
+  @@map("likes")
 }
 
-model Subscription {
-  id            String   @id @default(uuid())
-  created_at    DateTime @default(now())
+model Playlist {
+  id          String   @id @default(uuid()) @map("playlist_id")
+  userId      String   @map("user_id")
+  name        String   @db.VarChar(255)
+  isPrivate   Boolean  @default(false) @map("is_private")
+  createdAt   DateTime @default(now()) @map("created_at")
 
-  // Người đi đăng ký (Khán giả)
-  subscriber_id String
-  subscriber    User     @relation("UserSubscriptions", fields: [subscriber_id], references: [id], onDelete: Cascade)
-  
-  // Kênh được đăng ký (Tác giả)
-  channel_id    String
-  channel       User     @relation("ChannelSubscribers", fields: [channel_id], references: [id], onDelete: Cascade)
+  // --- Quan hệ ---
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       PlaylistItem[]
 
-  // Một người chỉ được subscribe 1 kênh 1 lần
-  @@unique([subscriber_id, channel_id])
+  @@map("playlists")
+}
+
+model PlaylistItem {
+  playlistId String   @map("playlist_id")
+  videoId    String   @map("video_id")
+  order      Int      // Thứ tự video trong playlist
+  addedAt    DateTime @default(now()) @map("added_at")
+
+  // --- Quan hệ ---
+  playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  video      Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@id([playlistId, videoId])
+  @@map("playlist_items")
 }
 
 model WatchHistory {
-  id          String   @id @default(uuid())
-  watched_at  DateTime @default(now()) // Thời điểm xem cuối cùng
-  progress    Int      @default(0)     // Lưu số giây đang xem dở 
+  id         String   @id @default(uuid()) @map("history_id")
+  userId     String   @map("user_id")
+  videoId    String   @map("video_id")
+  watchedAt  DateTime @default(now()) @map("watched_at")
+  lastSecond Int      @default(0) @map("last_second") // Lưu lại xem đến giây thứ mấy để "Xem tiếp"
 
-  user_id     String
-  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  
-  video_id    String
-  video       Video    @relation(fields: [video_id], references: [id], onDelete: Cascade)
+  // --- Quan hệ ---
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video      Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
 
-  // Cập nhật lại thời gian thay vì đẻ ra dòng mới
-  @@unique([user_id, video_id]) 
+  @@map("watch_history")
 }
