@@ -12,6 +12,6 @@ const connection = new IORedis({
 // Khởi tạo trạm bưu điện gửi đi, đặt tên đúng chuẩn 'video-jobs' để bên kia nhận được
 const videoQueue = new Queue("video-jobs", { connection });
 
-console.log("📮 Trạm bưu điện BullMQ đã sẵn sàng gửi việc!");
+console.log("[REDIS] BullMQ queue 'video-jobs' đã sẵn sàng gửi việc.");
 
 module.exports = videoQueue;

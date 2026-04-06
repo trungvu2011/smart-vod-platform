@@ -32,7 +32,7 @@ const uploadVideo = async (userId, file, title, description) => {
     uniqueFilename,
     file.buffer,
     file.size,
-    metaData
+    metaData,
   );
 
   // 3. Tạo URL trỏ tới file gốc trên MinIO
@@ -193,7 +193,7 @@ const deleteVideo = async (videoId, userId, userRole) => {
     // Xóa file HLS nếu có (thư mục chứa các .ts segments + .m3u8)
     if (video.metadata && video.metadata.hlsMasterUrl) {
       const hlsPrefixMatch = video.metadata.hlsMasterUrl.match(
-        new RegExp(`/${bucketName}/(.*?)/master.m3u8`)
+        new RegExp(`/${bucketName}/(.*?)/master.m3u8`),
       );
       if (hlsPrefixMatch && hlsPrefixMatch[1]) {
         const hlsPrefix = `${hlsPrefixMatch[1]}/`;
@@ -210,10 +210,10 @@ const deleteVideo = async (videoId, userId, userRole) => {
 
     if (objectsToRemove.length > 0) {
       await minioClient.removeObjects(bucketName, objectsToRemove);
-      console.log(`✅ Đã xóa ${objectsToRemove.length} files trên MinIO.`);
+      console.log(`[API] Đã xóa ${objectsToRemove.length} file trên MinIO.`);
     }
   } catch (cleanupErr) {
-    console.error("⚠️ Lỗi cleanup MinIO:", cleanupErr.message);
+    console.error("[ERROR] Lỗi cleanup MinIO:", cleanupErr.message);
     // Vẫn tiếp tục xóa DB record dù cleanup lỗi
   }
 

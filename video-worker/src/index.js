@@ -6,7 +6,7 @@ require("dotenv").config();
 
 const prisma = new PrismaClient();
 
-console.log("🚀 Hệ thống Video Worker đang khởi động...");
+console.log("[WORKER] Khởi động video-worker...");
 
 // Khởi tạo Worker, dán mắt vào hàng đợi có tên là 'video-jobs'
 const worker = new Worker(
@@ -24,35 +24,51 @@ const worker = new Worker(
 
 // Bắt sự kiện khi băm video THÀNH CÔNG
 worker.on("completed", async (job, returnvalue) => {
-  console.log(`🎉 Tuyệt vời! Job ${job.id} đã hoàn thành.`);
-  console.log(`🔗 Link HLS của video: ${returnvalue.hlsUrl}`);
+  console.log(`[WORKER] Job ${job.id} đã hoàn thành.`);
+  console.log(`[WORKER] Link HLS: ${returnvalue.hlsUrl}`);
 
-  // Cập nhật trạng thái video trong database thành 'ready' và lưu URL HLS
+  // Cập nhật video sang READY và upsert metadata theo schema DB mới.
   try {
-    await prisma.video.update({
-      where: { id: job.data.videoId },
-      data: {
-        status: "ready",
-        hls_url: returnvalue.hlsUrl,
-      },
-    });
+    await prisma.$transaction([
+      prisma.video.update({
+        where: { id: job.data.videoId },
+        data: { status: "READY" },
+      }),
+      prisma.videoMetadata.upsert({
+        where: { videoId: job.data.videoId },
+        update: {
+          hlsMasterUrl: returnvalue.hlsUrl,
+          subtitleUrl: returnvalue.transcriptUrl || null,
+          aiSummary: returnvalue.aiSummary || null,
+        },
+        create: {
+          videoId: job.data.videoId,
+          hlsMasterUrl: returnvalue.hlsUrl,
+          subtitleUrl: returnvalue.transcriptUrl || null,
+          aiSummary: returnvalue.aiSummary || null,
+          duration: 0,
+        },
+      }),
+    ]);
     console.log(
-      `✅ Đã cập nhật trạng thái 'ready' vào Database cho video ${job.data.videoId}!`,
+      `[WORKER] Đã cập nhật READY và metadata cho video ${job.data.videoId}.`,
     );
   } catch (error) {
-    console.error("🚨 Lỗi khi cập nhật trạng thái video:", error);
+    console.error("[ERROR] Lỗi cập nhật trạng thái video:", error);
   }
 });
 
 // Bắt sự kiện khi băm video THẤT BẠI
 worker.on("failed", async (job, err) => {
-  console.error(`🚨 Job ${job.id} đã thất bại với lỗi:`, err.message);
+  console.error(`[ERROR] Job ${job.id} thất bại:`, err.message);
 
-  // Cập nhật trạng thái video trong database thành 'failed'
+  // Cập nhật trạng thái video trong database thành FAILED
   try {
     await prisma.video.update({
       where: { id: job.data.videoId },
-      data: { status: "failed" },
+      data: { status: "FAILED" },
     });
-  } catch (dbErr) {}
+  } catch (dbErr) {
+    console.error("[ERROR] Lỗi cập nhật trạng thái FAILED:", dbErr);
+  }
 });

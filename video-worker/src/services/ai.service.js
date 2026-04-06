@@ -11,7 +11,7 @@ ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
 // Hàm bóc tách âm thanh bằng FFmpeg
 const extractAudio = async (rawFilePath, audioPath) => {
-  console.log("🤖 [AI Service - 1/4] Bắt đầu trích xuất âm thanh...");
+  console.log("[AI] [1/4] Bắt đầu trích xuất âm thanh...");
   return new Promise((resolve, reject) => {
     ffmpeg(rawFilePath)
       .outputOptions(["-q:a 0", "-map a"])
@@ -24,28 +24,43 @@ const extractAudio = async (rawFilePath, audioPath) => {
 
 // Hàm gọi AI Whisper (Local) để chép phụ đề
 const transcribeAudio = async (audioPath, tempDir) => {
-  console.log("🤖 [AI Service - 2/4] Bắt đầu chạy Whisper...");
-  const whisperExe = path.join(
-    process.cwd(),
-    "whisper-env",
-    "Scripts",
-    "whisper.exe",
-  );
-  const whisperCmd = `set PYTHONIOENCODING=utf-8 && "${whisperExe}" "${audioPath}" --model small --language vi --output_format vtt --output_dir "${tempDir}"`;
+  console.log("[AI] [2/4] Bắt đầu chạy Whisper...");
+  const isWindows = process.platform === "win32";
+  const whisperExe = isWindows
+    ? path.join(process.cwd(), "whisper-env", "Scripts", "whisper.exe") // Cho Windows hiện tại
+    : path.join(process.cwd(), "whisper-env", "bin", "whisper"); // Cho Docker/Linux sau này
 
-  const { stdout, stderr } = await execPromise(whisperCmd);
+  const whisperCmd = `"${whisperExe}" "${audioPath}" --model small --language vi --output_format vtt --output_dir "${tempDir}"`;
 
-  console.log("🗣️ [Whisper Nghe Được]:\n", stdout);
+  // 1. Quét tìm đúng tên biến Path đang dùng (xử lý vụ phân biệt hoa/thường trên Windows)
+  const envPathKey =
+    Object.keys(process.env).find((k) => k.toLowerCase() === "path") || "PATH";
+
+  // 2. Lấy thư mục chứa file ffmpeg.exe của thư viện Node.js
+  const ffmpegDir = path.dirname(ffmpegInstaller.path);
+
+  // 3. Bơm vào cấu hình chạy Whisper
+  const options = {
+    env: {
+      ...process.env,
+      PYTHONIOENCODING: "utf-8",
+      // Ép Python phải dùng chung FFmpeg với Node.js
+      [envPathKey]: `${ffmpegDir}${path.delimiter}${process.env[envPathKey]}`,
+    },
+  };
+  const { stdout, stderr } = await execPromise(whisperCmd, options);
+
+  console.log("[AI] Kết quả Whisper:\n", stdout);
 
   // Chỉ log lỗi/cảnh báo nếu có
-  if (stderr) console.log("⚠️ [Whisper Warning]:", stderr);
+  if (stderr) console.log("[AI] Cảnh báo Whisper:", stderr);
 
   return path.join(tempDir, "audio.vtt"); // Trả về đường dẫn file kết quả
 };
 
 // Hàm Upload file VTT lên kho lưu trữ MinIO
 const uploadSubtitleToMinIO = async (vttFilePath, minioClient) => {
-  console.log("🤖 [AI Service - 3/4] Đang lưu phụ đề lên MinIO...");
+  console.log("[AI] [3/4] Đang lưu phụ đề lên MinIO...");
   const vttObjectName = `captions/${Date.now()}_subtitles.vtt`;
 
   await minioClient.fPutObject(
@@ -60,7 +75,7 @@ const uploadSubtitleToMinIO = async (vttFilePath, minioClient) => {
 
 // Hàm gọi AI Groq (Llama 3) tóm tắt nội dung
 const generateSummary = async (vttFilePath) => {
-  console.log("🧠 [AI Service - 4/4] Đang nhờ LLM (Groq/Llama) tóm tắt...");
+  console.log("[AI] [4/4] Đang tạo tóm tắt bằng LLM...");
   try {
     const vttContent = fs.readFileSync(vttFilePath, "utf-8");
 
@@ -83,10 +98,10 @@ const generateSummary = async (vttFilePath) => {
     const summary =
       chatCompletion.choices[0]?.message?.content || "Không có kết quả.";
 
-    console.log("✅ [AI Service] Đã tóm tắt xong!\n", summary);
+    console.log("[AI] Đã tóm tắt xong.\n", summary);
     return summary;
   } catch (error) {
-    console.error("⚠️ [AI Service] LLM gặp sự cố:", error.message);
+    console.error("[ERROR] Lỗi LLM:", error.message);
     return "Không thể tóm tắt do lỗi API hoặc video không có tiếng.";
   }
 };
@@ -108,8 +123,8 @@ const runLocalWhisper = async (rawFilePath, tempDir, minioClient) => {
       ai_summary: finalSummary,
     };
   } catch (error) {
-    console.error("❌ [AI Service] Lỗi khi chạy luồng AI Pipeline:", error);
-    return null;
+    console.error("[ERROR] Lỗi khi chạy AI pipeline:", error);
+    throw error;
   }
 };
 

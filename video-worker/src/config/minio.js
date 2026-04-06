@@ -10,6 +10,6 @@ const minioClient = new Minio.Client({
   secretKey: process.env.MINIO_SECRET_KEY,
 });
 
-console.log("📦 Worker đã sẵn sàng kết nối MinIO!");
+console.log("[WORKER] Sẵn sàng kết nối MinIO.");
 
 module.exports = minioClient;

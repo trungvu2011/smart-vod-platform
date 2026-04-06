@@ -4,7 +4,7 @@
  * Bắt tất cả lỗi chưa được xử lý từ các route/controller.
  */
 const errorHandler = (err, req, res, next) => {
-  console.error("❌ [Global Error Handler]:", err.stack || err.message);
+  console.error("[ERROR] Global Error Handler:", err.stack || err.message);
 
   // Lỗi từ Multer (file quá lớn, sai định dạng, ...)
   if (err.name === "MulterError") {

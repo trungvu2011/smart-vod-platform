@@ -5,7 +5,7 @@ require("dotenv").config();
 const minioClient = new Minio.Client({
   endPoint: process.env.MINIO_ENDPOINT,
   port: parseInt(process.env.MINIO_PORT),
-  useSSL: false, 
+  useSSL: false,
   accessKey: process.env.MINIO_ACCESS_KEY,
   secretKey: process.env.MINIO_SECRET_KEY,
 });
@@ -16,13 +16,13 @@ const initBucket = async () => {
   try {
     const exists = await minioClient.bucketExists(bucketName);
     if (exists) {
-      console.log(`📦 MinIO Bucket '${bucketName}' đã sẵn sàng.`);
+      console.log(`[API] MinIO bucket '${bucketName}' đã sẵn sàng.`);
     } else {
       await minioClient.makeBucket(bucketName, "us-east-1");
-      console.log(`📦 Đã tạo mới MinIO Bucket: '${bucketName}'`);
+      console.log(`[API] Đã tạo mới MinIO bucket: '${bucketName}'.`);
     }
   } catch (err) {
-    console.error("❌ Lỗi kết nối MinIO:", err);
+    console.error("[ERROR] Lỗi kết nối MinIO:", err);
   }
 };
 

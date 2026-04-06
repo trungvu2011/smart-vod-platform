@@ -1,7 +1,7 @@
 const IORedis = require("ioredis");
 require("dotenv").config();
 
-// Kết nối vào Redis Server (Đã chạy sẵn trong Docker ở Tuần 1)
+// Kết nối vào Redis Server
 const connection = new IORedis({
   host: process.env.REDIS_HOST,
   port: process.env.REDIS_PORT,
@@ -9,11 +9,11 @@ const connection = new IORedis({
 });
 
 connection.on("connect", () => {
-  console.log("📬 Worker đã kết nối thành công vào Hộp thư Redis!");
+  console.log("[REDIS] Đã kết nối Redis thành công.");
 });
 
 connection.on("error", (err) => {
-  console.error("❌ Lỗi kết nối Redis:", err);
+  console.error("[ERROR] Lỗi kết nối Redis:", err);
 });
 
 module.exports = connection;
