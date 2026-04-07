@@ -1,0 +1,165 @@
+import { useParams } from 'react-router-dom';
+import { Check, Lock, Play, Clock, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { useState } from 'react';
+import VideoPlayer from '../components/video/VideoPlayer';
+import GlassPanel from '../components/ui/GlassPanel';
+import CommentSection from '../components/ui/CommentSection';
+import { courses, sampleTranscript } from '../data/mockData';
+
+function formatDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+export default function CoursePlayerPage() {
+  const { id } = useParams<{ id: string }>();
+  const course = courses.find((c) => c.id === id) || courses[0];
+  const [activeLesson, setActiveLesson] = useState(
+    course.lessons.find((l) => l.status === 'in_progress') || course.lessons[0]
+  );
+  const [showTranscript, setShowTranscript] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(true);
+
+  const statusIcon = {
+    completed: <Check size={14} className="text-green-400" />,
+    in_progress: <Play size={12} className="text-wp-primary fill-current" />,
+    available: <span className="w-1.5 h-1.5 rounded-full bg-wp-on-surface-variant" />,
+    locked: <Lock size={12} className="text-wp-outline" />,
+  };
+
+  return (
+    <div className="animate-slide-up -m-6">
+      <div className="flex h-[calc(100vh-64px)]">
+        {/* Main content */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+          {/* Video Player */}
+          <div className="flex-shrink-0">
+            <VideoPlayer
+              src={activeLesson.videoUrl}
+              poster={course.thumbnailUrl}
+            />
+          </div>
+
+          {/* Lesson info */}
+          <div className="p-6 space-y-6">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-wp-primary mb-1 block">
+                LESSON {activeLesson.order.toString().padStart(2, '0')} • PLAYING
+              </span>
+              <h1 className="text-xl font-bold text-wp-on-surface">{activeLesson.title}</h1>
+            </div>
+
+            {/* AI Lesson Summary */}
+            <GlassPanel className="p-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <Sparkles size={16} className="text-wp-primary" />
+                <h3 className="text-sm font-semibold text-wp-on-surface">Lesson Summary</h3>
+                <span className="text-[10px] bg-wp-primary-container/20 text-wp-primary-fixed px-2 py-0.5 rounded-full font-medium">
+                  AI-Generated
+                </span>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-semibold text-wp-on-surface mb-2">Learning Objectives</h4>
+                <div className="space-y-2">
+                  {[
+                    'Understand modular logistics frameworks for enterprise scale.',
+                    'Analyze cross-border delay mitigation strategies.',
+                    'Evaluate fiscal year R&D resource allocation models.',
+                  ].map((obj, i) => (
+                    <div key={i} className="flex gap-2.5">
+                      <span className="flex-shrink-0 w-6 h-6 rounded bg-wp-primary-container/15
+                        flex items-center justify-center text-[10px] font-bold text-wp-primary">
+                        {(i + 1).toString().padStart(2, '0')}
+                      </span>
+                      <p className="text-xs text-wp-on-surface-variant leading-relaxed">{obj}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </GlassPanel>
+
+            {/* Transcript */}
+            <div>
+              <button
+                onClick={() => setShowTranscript(!showTranscript)}
+                className="flex items-center gap-2 text-sm font-semibold text-wp-on-surface 
+                  hover:text-wp-primary transition-colors"
+              >
+                Transcript
+                {showTranscript ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+              {showTranscript && (
+                <div className="mt-3 space-y-3 animate-fade-in">
+                  {sampleTranscript.map((entry, i) => (
+                    <div key={i} className="space-y-1">
+                      <p className="text-xs font-semibold text-wp-primary">{entry.speaker}</p>
+                      <p className="text-xs text-wp-on-surface-variant leading-relaxed">{entry.text}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Comments */}
+            <CommentSection />
+          </div>
+        </div>
+
+        {/* Sidebar — Course Content */}
+        {showSidebar && (
+          <aside className="w-[340px] flex-shrink-0 bg-wp-surface-container-low overflow-y-auto">
+            <div className="p-4 space-y-4">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-wp-outline mb-1">
+                  Current Course
+                </p>
+                <h2 className="text-sm font-semibold text-wp-on-surface">{course.title}</h2>
+              </div>
+
+              {/* Lesson list */}
+              <div className="space-y-0.5">
+                {course.lessons.map((lesson) => (
+                  <button
+                    key={lesson.id}
+                    onClick={() => lesson.status !== 'locked' && setActiveLesson(lesson)}
+                    disabled={lesson.status === 'locked'}
+                    className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200
+                      ${activeLesson.id === lesson.id
+                        ? 'bg-wp-primary-container/15'
+                        : 'hover:bg-wp-surface-container-high/50'
+                      }
+                      ${lesson.status === 'locked' ? 'opacity-40 cursor-not-allowed' : ''}
+                    `}
+                  >
+                    <span className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0">
+                      {statusIcon[lesson.status]}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] text-wp-outline uppercase tracking-wide">
+                        Lesson {lesson.order.toString().padStart(2, '0')}
+                        {activeLesson.id === lesson.id && (
+                          <span className="text-wp-primary ml-1">• PLAYING</span>
+                        )}
+                      </p>
+                      <p className={`text-xs font-medium truncate ${
+                        activeLesson.id === lesson.id ? 'text-wp-primary' : 'text-wp-on-surface'
+                      }`}>
+                        {lesson.title}
+                      </p>
+                    </div>
+                    <span className="text-[10px] text-wp-outline flex-shrink-0 flex items-center gap-0.5">
+                      <Clock size={10} />
+                      {formatDuration(lesson.duration)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </aside>
+        )}
+      </div>
+    </div>
+  );
+}

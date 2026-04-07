@@ -1,18 +1,97 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-@theme {
-  --color-primary: #e60a15;
-  --color-primary-hover: #b30810;
-  --color-bg-dark: #120808;
-  --color-surface-dark: #221011;
-  --color-neutral-dark: #392829;
-  --color-text-primary: #ffffff;
-  --color-text-secondary: #a3a3a3;
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 @layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
   body {
-    @apply bg-bg-dark text-text-primary font-sans antialiased;
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: #0b1326;
+    color: #dae2fd;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+
+  /* Scrollbar styling for the cinematic dark theme */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #0b1326;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #434656;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #8d90a2;
+  }
+}
+
+@layer components {
+  /* Glass panel effect — reusable via @apply or the GlassPanel component */
+  .glass {
+    background: rgba(45, 52, 73, 0.6);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .glass-heavy {
+    background: rgba(23, 31, 51, 0.5);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+  }
+
+  /* Ghost border — per the design system's "No-Line" rule, very subtle */
+  .ghost-border {
+    border: 1px solid rgba(67, 70, 86, 0.15);
+  }
+
+  /* Primary gradient button */
+  .btn-primary {
+    @apply bg-wp-gradient text-wp-on-primary font-semibold rounded-wp px-6 py-2.5 
+           transition-all duration-200 hover:bg-wp-gradient-hover hover:shadow-wp-glow
+           active:scale-[0.98];
+  }
+
+  /* Secondary button */
+  .btn-secondary {
+    @apply bg-wp-surface-container-high text-wp-on-surface font-medium rounded-wp px-6 py-2.5
+           transition-all duration-200 hover:bg-wp-surface-bright active:scale-[0.98];
+  }
+
+  /* Ghost / tertiary button */
+  .btn-ghost {
+    @apply bg-transparent text-wp-on-surface-variant font-medium rounded-wp px-4 py-2
+           transition-all duration-200 hover:bg-wp-surface-container-high/30;
+  }
+}
+
+@layer utilities {
+  /* Tonal shift for hover state on cards */
+  .hover-lift {
+    @apply transition-all duration-200 hover:bg-wp-surface-bright hover:scale-[1.02];
+  }
+
+  /* Text gradient */
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-wp-gradient;
   }
 }
