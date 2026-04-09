@@ -40,41 +40,65 @@ const processVideo = async (job) => {
         .replace(/\\/g, "/");
 
       ffmpeg(inputFilePath)
-        // KHÔNG DÙNG complexFilter nữa để tránh tràn RAM cho bản FFmpeg rút gọn
         .outputOptions([
-          "-preset ultrafast",
+          "-preset fast", // Cân bằng giữa tốc độ Server và độ nét Video
 
-          // Cặp 1: Luồng 720p (Video 0 + Audio 0)
+          // ==========================================
+          // 🥇 Cặp 1: Luồng 720p (Cáp quang / Wifi khỏe)
+          // ==========================================
           "-map 0:v",
           "-s:v:0 1280x720",
+          "-r:v:0 30", // Khóa cứng 30 fps
           "-c:v:0 libx264",
           "-b:v:0 2500k",
+          "-g:v:0 300", // [Kỷ luật] 30fps x 10s = 300 frame cắt 1 lần
+          "-keyint_min:v:0 300",
+          "-sc_threshold:v:0 0",
           "-map 0:a",
           "-c:a:0 aac",
           "-b:a:0 128k",
+          "-filter:a:0 loudnorm", // [Bí thuật] Kích tiếng to rõ đều đặn
 
-          // Cặp 2: Luồng 360p (Video 1 + Audio 1)
+          // ==========================================
+          // 🥈 Cặp 2: Luồng 360p (Mạng di động 4G)
+          // ==========================================
           "-map 0:v",
           "-s:v:1 640x360",
+          "-r:v:1 30", // Khóa cứng 30 fps
           "-c:v:1 libx264",
           "-b:v:1 800k",
+          "-g:v:1 300", // [Kỷ luật] 30fps x 10s = 300 frame cắt 1 lần
+          "-keyint_min:v:1 300",
+          "-sc_threshold:v:1 0",
           "-map 0:a",
           "-c:a:1 aac",
-          "-b:a:1 128k",
+          "-b:a:1 96k",
+          "-filter:a:1 loudnorm",
 
-          // Cặp 3: Luồng 144p (Video 2 + Audio 2)
+          // ==========================================
+          // 🥉 Cặp 3: Luồng 240p (Mạng siêu yếu / Cấp cứu < 200kbps)
+          // ==========================================
           "-map 0:v",
-          "-s:v:2 256x144",
+          "-s:v:2 426x240",
+          "-r:v:2 15",
           "-c:v:2 libx264",
-          "-b:v:2 100k",
+          "-b:v:2 100k", // 1. Hạ mốc trung bình xuống 100k (Lùi 1 bước cho an toàn)
+          "-maxrate:v:2 120k", // 2. [QUAN TRỌNG] Đặt trần tối đa: Tuyệt đối không được vượt quá 120k!
+          "-bufsize:v:2 240k", // 3. [QUAN TRỌNG] Bộ đệm (Luôn set gấp đôi maxrate để FFmpeg tính toán)
+          "-g:v:2 150",
+          "-keyint_min:v:2 150",
+          "-sc_threshold:v:2 0",
           "-map 0:a",
           "-c:a:2 aac",
-          "-b:a:2 48k",
+          "-b:a:2 32k",
+          "-filter:a:2 loudnorm",
 
-          // Cấu hình HLS
+          // ==========================================
+          // ⚙️ Cấu hình lõi HLS
+          // ==========================================
           "-f hls",
-          "-hls_time 10",
-          "-hls_playlist_type vod",
+          "-hls_time 10", // Độ dài mỗi mảnh ts là 10 giây
+          "-hls_playlist_type vod", // Chế độ VOD cho phép tua tới lui
           "-hls_flags independent_segments",
           "-master_pl_name master.m3u8",
           "-hls_segment_filename",
@@ -89,7 +113,7 @@ const processVideo = async (job) => {
           console.log("🚀 Lệnh FFmpeg đang chạy:\n", commandLine);
         })
         .on("end", () => resolve())
-        // FFmpeg có thể bị crash lúc tắt, nhưng nếu file m3u8 đã có rồi thì vẫn coi như thành công và đi tiếp sang Bước 4
+        // FFmpeg có thể bị crash lúc tắt, nhưng nếu file m3u8 đã có rồi thì vẫn coi như thành công
         .on("error", (err, stdout, stderr) => {
           const masterPlaylistPath = path.join(tempDir, "master.m3u8");
 
