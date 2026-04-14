@@ -45,7 +45,7 @@ export default function LikedVideosPage() {
   const sorted = [...likedVideos].sort((a, b) => {
     if (sortBy === 'recent') return new Date(b.likedAt).getTime() - new Date(a.likedAt).getTime();
     if (sortBy === 'oldest') return new Date(a.likedAt).getTime() - new Date(b.likedAt).getTime();
-    return b.views - a.views;
+    return b.viewCount - a.viewCount;
   });
 
   return (
@@ -108,7 +108,7 @@ export default function LikedVideosPage() {
               />
               <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 text-xs font-medium
                 bg-black/70 text-white rounded">
-                {formatDuration(video.duration)}
+                {formatDuration(video.metadata?.duration || 0)}
               </span>
             </div>
 
@@ -119,12 +119,12 @@ export default function LikedVideosPage() {
                 {video.title}
               </h3>
               <p className="text-sm text-wp-on-surface-variant mt-1.5">
-                {video.channel.name}
+                {video.creator.fullName}
               </p>
               <div className="flex items-center gap-3 mt-2 text-sm text-wp-outline">
                 <span className="flex items-center gap-1">
                   <Eye size={14} />
-                  {video.views.toLocaleString()} views
+                  {video.viewCount.toLocaleString()} views
                 </span>
                 <span>•</span>
                 <span className="flex items-center gap-1">

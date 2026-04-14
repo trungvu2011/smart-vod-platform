@@ -15,7 +15,7 @@ const addComment = async (req, res, next) => {
     );
 
     res.status(201).json({
-      message: "Thêm bình luận thành công!",
+      message: "Comment added successfully.",
       comment,
     });
   } catch (error) {
@@ -30,7 +30,7 @@ const getComments = async (req, res, next) => {
     const comments = await commentService.getComments(videoId);
 
     res.status(200).json({
-      message: "Lấy bình luận thành công!",
+      message: "Comments retrieved successfully.",
       comments,
     });
   } catch (error) {
@@ -47,7 +47,7 @@ const toggleLike = async (req, res, next) => {
     const result = await commentService.toggleLike(videoId, userId);
 
     res.status(200).json({
-      message: result.liked ? "Đã thích video!" : "Đã bỏ thích video!",
+      message: result.liked ? "Video liked." : "Video unliked.",
       liked: result.liked,
     });
   } catch (error) {

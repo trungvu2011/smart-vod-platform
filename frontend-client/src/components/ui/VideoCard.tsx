@@ -55,7 +55,7 @@ export default function VideoCard({ video, size = 'md', showChannel = true, prog
         {/* Duration badge */}
         <span className="absolute bottom-2 right-2 px-1.5 py-0.5 text-xs font-medium
           bg-black/70 text-white rounded backdrop-blur-sm">
-          {formatDuration(video.duration)}
+          {formatDuration(video.metadata?.duration || 0)}
         </span>
         {/* Progress bar */}
         {progress !== undefined && progress > 0 && (
@@ -75,8 +75,8 @@ export default function VideoCard({ video, size = 'md', showChannel = true, prog
       <div className="flex gap-3">
         {showChannel && (
           <img
-            src={video.channel.avatar}
-            alt={video.channel.name}
+            src={video.creator.avatarUrl}
+            alt={video.creator.fullName}
             className="w-9 h-9 rounded-full bg-wp-surface-container-high flex-shrink-0 mt-0.5"
           />
         )}
@@ -87,13 +87,13 @@ export default function VideoCard({ video, size = 'md', showChannel = true, prog
           </h3>
           {showChannel && (
             <p className="text-xs text-wp-on-surface-variant mt-1">
-              {video.channel.name}
+              {video.creator.fullName}
             </p>
           )}
           <div className="flex items-center gap-2 mt-1 text-xs text-wp-outline">
             <span className="flex items-center gap-1">
               <Eye size={12} />
-              {formatViews(video.views)}
+              {formatViews(video.viewCount)}
             </span>
             <span>•</span>
             <span className="flex items-center gap-1">

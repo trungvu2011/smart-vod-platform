@@ -48,12 +48,12 @@ export default function Navbar() {
               hover:bg-wp-surface-container-high transition-colors"
           >
             <img
-              src={user?.avatar}
-              alt={user?.name}
+              src={user?.avatarUrl}
+              alt={user?.fullName}
               className="w-8 h-8 rounded-full bg-wp-surface-container-high"
             />
             <div className="hidden md:block text-left">
-              <p className="text-sm font-medium text-wp-on-surface leading-tight">{user?.name}</p>
+              <p className="text-sm font-medium text-wp-on-surface leading-tight">{user?.fullName}</p>
               <p className="text-xs text-wp-on-surface-variant leading-tight">{user?.title}</p>
             </div>
             <ChevronDown size={16} className="text-wp-on-surface-variant hidden md:block" />

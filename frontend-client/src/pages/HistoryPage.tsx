@@ -1,29 +1,15 @@
 import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { SlidersHorizontal, Trash2, MoreVertical } from 'lucide-react';
-import { watchHistory } from '../data/mockData';
+import { userApi } from '../api/userApi';
 import type { HistoryItem } from '../types';
 
-// Extend mock data with categories for richer display
+// Extend data with categories for richer display
 interface HistoryCard extends HistoryItem {
   category: string;
   timeLabel: string;
+  progress: number;
 }
-
-const enrichedHistory: HistoryCard[] = watchHistory.map((item, i) => {
-  const categories = ['STRATEGY', 'IT & SECURITY', 'HR', 'ANALYTICS', 'ENGINEERING', 'OPERATIONS'];
-  const diff = Date.now() - new Date(item.watchedAt).getTime();
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  let timeLabel: string;
-  if (hours < 24) timeLabel = `${hours} hours ago`;
-  else if (hours < 48) {
-    const d = new Date(item.watchedAt);
-    timeLabel = `Yesterday, ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
-  } else {
-    const d = new Date(item.watchedAt);
-    timeLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  }
-  return { ...item, category: categories[i % categories.length], timeLabel };
-});
 
 // Group by period
 function groupHistory(items: HistoryCard[]) {
@@ -60,6 +46,51 @@ function formatDuration(seconds: number): string {
 }
 
 export default function HistoryPage() {
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadHistory() {
+      try {
+        const data = await userApi.getHistory();
+        setHistory(data);
+      } catch (err) {
+        console.error('Failed to load history', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadHistory();
+  }, []);
+
+  if (loading) {
+    return <div className="p-10 text-center animate-pulse text-wp-on-surface-variant">Loading history...</div>;
+  }
+
+  const enrichedHistory: HistoryCard[] = history.map((item) => {
+    const diff = Date.now() - new Date(item.watchedAt).getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    let timeLabel: string;
+    if (hours < 24) timeLabel = `${hours} hours ago`;
+    else if (hours < 48) {
+      const d = new Date(item.watchedAt);
+      timeLabel = `Yesterday, ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+    } else {
+      const d = new Date(item.watchedAt);
+      timeLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    const duration = item.video.metadata?.duration || 1;
+    const progress = Math.min(100, Math.floor((item.lastSecond / duration) * 100));
+
+    return { 
+      ...item, 
+      category: item.video.category || 'UNCATEGORIZED', 
+      timeLabel,
+      progress
+    };
+  });
+
   const groups = groupHistory(enrichedHistory);
 
   return (
@@ -113,7 +144,7 @@ export default function HistoryPage() {
                 <div className="relative aspect-video rounded-xl overflow-hidden bg-wp-surface-lowest mb-4
                   transition-transform duration-300 group-hover:scale-[1.02]">
                   <img
-                    src={item.video.thumbnailUrl}
+                    src={item.video.thumbnailUrl || 'https://via.placeholder.com/400x225'}
                     alt={item.video.title}
                     className="w-full h-full object-cover"
                     loading="lazy"
@@ -137,7 +168,7 @@ export default function HistoryPage() {
                   {/* Duration */}
                   <div className="absolute bottom-3 left-3 glass px-1.5 py-0.5 rounded
                     text-[10px] font-medium text-white">
-                    {formatDuration(item.video.duration)}
+                    {formatDuration(item.video.metadata?.duration || 0)}
                   </div>
                 </div>
 
@@ -172,7 +203,7 @@ export default function HistoryPage() {
         </section>
       ))}
 
-      {watchHistory.length === 0 && (
+      {history.length === 0 && (
         <div className="text-center py-20 space-y-3">
           <p className="text-wp-on-surface-variant text-lg">No watch history yet</p>
           <p className="text-sm text-wp-outline">Videos you watch will appear here</p>

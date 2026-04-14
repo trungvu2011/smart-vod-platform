@@ -26,18 +26,28 @@ enum VideoStatus {
   BANNED
 }
 
+enum Visibility {
+  PUBLIC
+  ORG
+  PRIVATE
+}
+
 // =========================================
 // MODELS
 // =========================================
 
 model User {
-  id            String         @id @default(uuid()) @map("user_id")
-  fullName      String         @db.VarChar(100) @map("full_name")
-  email         String         @unique @db.VarChar(150)
-  passwordHash  String         @db.VarChar(255) @map("password_hash")
-  role          Role           @default(USER)
-  avatarUrl     String?        @map("avatar_url")
-  createdAt     DateTime       @default(now()) @map("created_at")
+  id               String         @id @default(uuid()) @map("user_id")
+  fullName         String         @db.VarChar(100) @map("full_name")
+  email            String         @unique @db.VarChar(150)
+  passwordHash     String         @db.VarChar(255) @map("password_hash")
+  role             Role           @default(USER)
+  avatarUrl        String?        @map("avatar_url")
+  title            String?        @db.VarChar(100)
+  department       String?        @db.VarChar(100)
+  videosViewed     Int            @default(0) @map("videos_viewed")
+  certifications   Int            @default(0)
+  createdAt        DateTime       @default(now()) @map("created_at")
 
   // --- Quan hệ ---
   videos        Video[]        // Video đã đăng
@@ -45,6 +55,8 @@ model User {
   likes         Like[]         // Các lượt Like
   playlists     Playlist[]     // Danh sách phát tự tạo
   watchHistory  WatchHistory[] // Lịch sử xem
+  notifications Notification[]
+  sessions      Session[]
 
   @@map("users")
 }
@@ -55,6 +67,8 @@ model Video {
   title           String      @db.VarChar(255)
   description     String?     @db.Text
   thumbnailUrl    String?     @map("thumbnail_url")
+  category        String?     @db.VarChar(100)
+  visibility      Visibility  @default(ORG)
   status          VideoStatus @default(PENDING)
   viewCount       Int         @default(0) @map("view_count")
   createdAt       DateTime    @default(now()) @map("created_at")
@@ -152,4 +166,40 @@ model WatchHistory {
   video      Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
 
   @@map("watch_history")
+}
+
+// =========================================
+// ADDITIONAL MODELS
+// =========================================
+
+
+
+model Notification {
+  id          String   @id @default(uuid()) @map("notification_id")
+  userId      String   @map("user_id")
+  type        String   @db.VarChar(50) // "training", "townhall", etc.
+  title       String   @db.VarChar(255)
+  message     String   @db.Text
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+
+
+model Session {
+  id          String   @id @default(uuid()) @map("session_id")
+  userId      String   @map("user_id")
+  device      String   @db.VarChar(255)
+  location    String   @db.VarChar(255)
+  lastActive  DateTime @default(now()) @map("last_active")
+  isCurrent   Boolean  @default(true) @map("is_current")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
 }

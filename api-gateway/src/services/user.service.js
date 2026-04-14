@@ -35,7 +35,7 @@ const getHistory = async (userId) => {
  */
 const upsertHistory = async (userId, videoId, lastSecond = 0) => {
   if (!videoId) {
-    const err = new Error("Vui lòng cung cấp videoId!");
+    const err = new Error("Please provide a videoId!");
     err.statusCode = 400;
     throw err;
   }
@@ -43,7 +43,7 @@ const upsertHistory = async (userId, videoId, lastSecond = 0) => {
   // Kiểm tra video tồn tại
   const video = await prisma.video.findUnique({ where: { id: videoId } });
   if (!video) {
-    const err = new Error("Không tìm thấy video!");
+    const err = new Error("Video not found!");
     err.statusCode = 404;
     throw err;
   }
@@ -76,4 +76,41 @@ const upsertHistory = async (userId, videoId, lastSecond = 0) => {
   }
 };
 
-module.exports = { getHistory, upsertHistory };
+const getLikedVideos = async (userId) => {
+  const likes = await prisma.like.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    include: {
+      video: {
+        include: {
+          creator: { select: { id: true, fullName: true, avatarUrl: true } },
+          metadata: { select: { duration: true } }
+        }
+      }
+    }
+  });
+  return likes.map(l => l.video);
+};
+
+const getNotifications = async (userId) => {
+  return await prisma.notification.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" }
+  });
+};
+
+const getActivities = async (userId) => {
+  return await prisma.activity.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" }
+  });
+};
+
+const getSessions = async (userId) => {
+  return await prisma.session.findMany({
+    where: { userId },
+    orderBy: { lastActive: "desc" }
+  });
+};
+
+module.exports = { getHistory, upsertHistory, getLikedVideos, getNotifications, getActivities, getSessions };

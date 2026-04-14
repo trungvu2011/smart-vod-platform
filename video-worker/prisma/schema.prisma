@@ -1,3 +1,6 @@
+// =========================================
+// CẤU HÌNH DATABASE
+// =========================================
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,6 +10,9 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// =========================================
+// ENUMS
+// =========================================
 enum Role {
   USER
   ADMIN
@@ -20,20 +26,37 @@ enum VideoStatus {
   BANNED
 }
 
-model User {
-  id            String         @id @default(uuid()) @map("user_id")
-  fullName      String         @db.VarChar(100) @map("full_name")
-  email         String         @unique @db.VarChar(150)
-  passwordHash  String         @db.VarChar(255) @map("password_hash")
-  role          Role           @default(USER)
-  avatarUrl     String?        @map("avatar_url")
-  createdAt     DateTime       @default(now()) @map("created_at")
+enum Visibility {
+  PUBLIC
+  ORG
+  PRIVATE
+}
 
-  videos        Video[]
-  comments      Comment[]
-  likes         Like[]
-  playlists     Playlist[]
-  watchHistory  WatchHistory[]
+// =========================================
+// MODELS
+// =========================================
+
+model User {
+  id               String         @id @default(uuid()) @map("user_id")
+  fullName         String         @db.VarChar(100) @map("full_name")
+  email            String         @unique @db.VarChar(150)
+  passwordHash     String         @db.VarChar(255) @map("password_hash")
+  role             Role           @default(USER)
+  avatarUrl        String?        @map("avatar_url")
+  title            String?        @db.VarChar(100)
+  department       String?        @db.VarChar(100)
+  videosViewed     Int            @default(0) @map("videos_viewed")
+  certifications   Int            @default(0)
+  createdAt        DateTime       @default(now()) @map("created_at")
+
+  // --- Quan hệ ---
+  videos        Video[]        // Video đã đăng
+  comments      Comment[]      // Bình luận đã viết
+  likes         Like[]         // Các lượt Like
+  playlists     Playlist[]     // Danh sách phát tự tạo
+  watchHistory  WatchHistory[] // Lịch sử xem
+  notifications Notification[]
+  sessions      Session[]
 
   @@map("users")
 }
@@ -44,10 +67,13 @@ model Video {
   title           String      @db.VarChar(255)
   description     String?     @db.Text
   thumbnailUrl    String?     @map("thumbnail_url")
+  category        String?     @db.VarChar(100)
+  visibility      Visibility  @default(ORG)
   status          VideoStatus @default(PENDING)
   viewCount       Int         @default(0) @map("view_count")
   createdAt       DateTime    @default(now()) @map("created_at")
 
+  // --- Quan hệ ---
   creator         User           @relation(fields: [creatorId], references: [id], onDelete: Cascade)
   metadata        VideoMetadata?
   comments        Comment[]
@@ -59,13 +85,13 @@ model Video {
 }
 
 model VideoMetadata {
-  id            String   @id @default(uuid()) @map("metadata_id")
-  videoId       String   @unique @map("video_id")
-  hlsMasterUrl  String?  @map("hls_master_url")
-  subtitleUrl   String?  @map("subtitle_url")
-  aiSummary     String?  @db.Text @map("ai_summary")
-  duration      Int      @default(0)
-  video         Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  id                 String  @id @default(uuid()) @map("metadata_id")
+  videoId            String  @unique @map("video_id")
+  hlsMasterUrl       String? @map("hls_master_url")
+  subtitleUrl        String? @map("subtitle_url")
+  aiSummary          String? @db.Text @map("ai_summary")
+  duration           Int     @default(0) // Độ dài video (giây)
+  video              Video   @relation(fields: [videoId], references: [id], onDelete: Cascade)
 
   @@map("video_metadata")
 }
@@ -75,9 +101,10 @@ model Comment {
   content   String   @db.Text
   videoId   String   @map("video_id")
   userId    String   @map("user_id")
-  parentId  String?  @map("parent_id")
+  parentId  String?  @map("parent_id") // Để làm comment lồng nhau (reply)
   createdAt DateTime @default(now()) @map("created_at")
 
+  // --- Quan hệ ---
   video     Video     @relation(fields: [videoId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
@@ -91,22 +118,24 @@ model Like {
   videoId   String   @map("video_id")
   createdAt DateTime @default(now()) @map("created_at")
 
+  // --- Quan hệ ---
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   video     Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
 
-  @@id([userId, videoId])
+  @@id([userId, videoId]) // Khóa chính tổ hợp: Một người chỉ like 1 video 1 lần
   @@map("likes")
 }
 
 model Playlist {
-  id        String   @id @default(uuid()) @map("playlist_id")
-  userId    String   @map("user_id")
-  name      String   @db.VarChar(255)
-  isPrivate Boolean  @default(false) @map("is_private")
-  createdAt DateTime @default(now()) @map("created_at")
+  id          String   @id @default(uuid()) @map("playlist_id")
+  userId      String   @map("user_id")
+  name        String   @db.VarChar(255)
+  isPrivate   Boolean  @default(false) @map("is_private")
+  createdAt   DateTime @default(now()) @map("created_at")
 
-  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items     PlaylistItem[]
+  // --- Quan hệ ---
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       PlaylistItem[]
 
   @@map("playlists")
 }
@@ -114,9 +143,10 @@ model Playlist {
 model PlaylistItem {
   playlistId String   @map("playlist_id")
   videoId    String   @map("video_id")
-  order      Int
+  order      Int      // Thứ tự video trong playlist
   addedAt    DateTime @default(now()) @map("added_at")
 
+  // --- Quan hệ ---
   playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
   video      Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
 
@@ -129,10 +159,47 @@ model WatchHistory {
   userId     String   @map("user_id")
   videoId    String   @map("video_id")
   watchedAt  DateTime @default(now()) @map("watched_at")
-  lastSecond Int      @default(0) @map("last_second")
+  lastSecond Int      @default(0) @map("last_second") // Lưu lại xem đến giây thứ mấy để "Xem tiếp"
 
+  // --- Quan hệ ---
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   video      Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
 
   @@map("watch_history")
+}
+
+// =========================================
+// ADDITIONAL MODELS
+// =========================================
+
+
+
+model Notification {
+  id          String   @id @default(uuid()) @map("notification_id")
+  userId      String   @map("user_id")
+  type        String   @db.VarChar(50) // "training", "townhall", etc.
+  title       String   @db.VarChar(255)
+  message     String   @db.Text
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+
+
+model Session {
+  id          String   @id @default(uuid()) @map("session_id")
+  userId      String   @map("user_id")
+  device      String   @db.VarChar(255)
+  location    String   @db.VarChar(255)
+  lastActive  DateTime @default(now()) @map("last_active")
+  isCurrent   Boolean  @default(true) @map("is_current")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
 }

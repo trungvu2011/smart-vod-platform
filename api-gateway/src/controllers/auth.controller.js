@@ -7,7 +7,7 @@ const login = async (req, res, next) => {
     const result = await authService.login(email, password);
 
     res.status(200).json({
-      message: "Đăng nhập thành công!",
+      message: "Login successful.",
       accessToken: result.accessToken,
       user: result.user,
     });
@@ -24,7 +24,7 @@ const changePassword = async (req, res, next) => {
 
     await authService.changePassword(userId, oldPassword, newPassword);
 
-    res.status(200).json({ message: "Đổi mật khẩu thành công!" });
+    res.status(200).json({ message: "Password changed successfully." });
   } catch (error) {
     next(error);
   }

@@ -1,86 +1,90 @@
 // ============================
-// WayPoint — TypeScript Types
+// WayPoint — TypeScript Types (synced with backend Prisma schema)
 // ============================
 
 export interface User {
   id: string;
-  name: string;
+  fullName: string;
   email: string;
-  avatar: string;
-  role: 'viewer' | 'creator' | 'admin';
-  title: string;
-  department: string;
-  stats: {
-    videosViewed: number;
-    coursesCompleted: number;
-    certifications: number;
-  };
+  avatarUrl?: string;
+  role: 'USER' | 'ADMIN';
+  title?: string;
+  department?: string;
+  // Client-side computed / extra fields from API
+  videosViewed?: number;
+  certifications?: number;
+}
+
+export interface VideoCreator {
+  id: string;
+  fullName: string;
+  avatarUrl?: string;
+}
+
+export interface VideoMetadata {
+  duration: number;        // seconds, computed by video-worker
+  hlsMasterUrl?: string;
+  subtitleUrl?: string;
 }
 
 export interface Video {
   id: string;
   title: string;
-  description: string;
-  thumbnailUrl: string;
-  videoUrl: string; // m3u8 or mp4
-  duration: number; // seconds
-  views: number;
-  likes: number;
+  description?: string;
+  thumbnailUrl?: string;
+  status: 'PENDING' | 'PROCESSING' | 'READY' | 'FAILED' | 'BANNED';
+  viewCount: number;
   createdAt: string;
-  channel: {
-    id: string;
-    name: string;
-    avatar: string;
+  creator: VideoCreator;
+  metadata?: VideoMetadata;
+  category?: string;
+  visibility: 'PUBLIC' | 'ORG' | 'PRIVATE';
+  _count?: {
+    likes: number;
+    comments: number;
   };
-  category: string;
-  tags: string[];
-}
-
-export interface Course {
-  id: string;
-  title: string;
-  description: string;
-  thumbnailUrl: string;
-  instructor: Instructor;
-  lessons: Lesson[];
-  totalDuration: number; // seconds
-  enrolledCount: number;
-  category: string;
-  progress?: number; // 0-100
-  status?: 'not_started' | 'in_progress' | 'completed';
-}
-
-export interface Lesson {
-  id: string;
-  title: string;
-  duration: number; // seconds
-  videoUrl: string;
-  order: number;
-  status: 'locked' | 'available' | 'in_progress' | 'completed';
-}
-
-export interface Instructor {
-  id: string;
-  name: string;
-  title: string;
-  avatar: string;
-  bio: string;
 }
 
 export interface HistoryItem {
   id: string;
-  video: Video;
+  userId: string;
+  videoId: string;
+  lastSecond: number;      // seconds watched up to
   watchedAt: string;
-  progress: number; // 0-100
-  watchedDuration: number; // seconds
+  video: Video;
 }
 
 export interface Playlist {
   id: string;
-  title: string;
-  thumbnailUrl: string;
-  videoCount: number;
+  userId: string;
+  name: string;
   isPrivate: boolean;
+  createdAt: string;
+  _count?: { items: number };
+  items?: PlaylistItem[];
+}
+
+export interface PlaylistItem {
+  playlistId: string;
+  videoId: string;
+  order: number;
+  addedAt: string;
+  video?: Video;
+}
+
+export interface Comment {
+  id: string;
+  videoId: string;
+  userId: string;
+  parentId?: string;
+  content: string;
+  createdAt: string;
+  user: {
+    id: string;
+    fullName: string;
+    avatarUrl?: string;
+  };
+  _count?: { replies: number };
 }
 
 export interface Attachment {

@@ -58,6 +58,7 @@ Most APIs return:
 - `/api/admin`
 - `/api/videos`
 - `/api/users`
+- `/api/playlists`
 
 ## 4. Detailed API Reference
 
@@ -278,6 +279,31 @@ Success response (`200`):
       "likes": 10,
       "comments": 4
     }
+  }
+}
+```
+
+Common errors:
+
+- `404`: Video not found
+
+### GET /api/videos/:id/ai-summary
+
+Get AI summary for a video.
+
+Auth: Public
+
+Success response (`200`):
+
+```json
+{
+  "message": "Lay AI summary thanh cong!",
+  "aiSummary": {
+    "keyTakeaways": [
+      { "order": 1, "text": "..." }
+    ],
+    "sentimentAnalysis": "...",
+    "requiredActions": ["..."]
   }
 }
 ```
@@ -560,6 +586,151 @@ Common errors:
 
 - `400`: Missing `videoId`
 - `404`: Video not found
+
+### GET /api/users/liked-videos
+
+Get current user liked videos.
+
+Auth: Protected
+
+Success response (`200`):
+
+```json
+{
+  "message": "Lay video da thich thanh cong!",
+  "likedVideos": [
+    {
+      "id": "like-uuid",
+      "video": { ... }
+    }
+  ]
+}
+```
+
+### GET /api/users/notifications
+
+Get current user notifications.
+
+Auth: Protected
+
+Success response (`200`):
+
+```json
+{
+  "message": "Lay thong bao thanh cong!",
+  "notifications": [
+    {
+      "id": "notif-uuid",
+      "title": "Welcome",
+      "content": "...",
+      "type": "SYSTEM",
+      "isRead": false,
+      "createdAt": "..."
+    }
+  ]
+}
+```
+
+### GET /api/users/activities
+
+Get current user activities.
+
+Auth: Protected
+
+Success response (`200`):
+
+```json
+{
+  "message": "Lay hoat dong thanh cong!",
+  "activities": [
+    {
+      "id": "act-uuid",
+      "type": "LOGIN",
+      "details": { ... },
+      "createdAt": "..."
+    }
+  ]
+}
+```
+
+### GET /api/users/sessions
+
+Get active sessions for current user.
+
+Auth: Protected
+
+Success response (`200`):
+
+```json
+{
+  "message": "Lay phien hoat dong thanh cong!",
+  "sessions": [
+    {
+      "id": "session-uuid",
+      "deviceInfo": "...",
+      "ipAddress": "192.168.1.1",
+      "lastActiveAt": "...",
+      "isActive": true
+    }
+  ]
+}
+```
+
+## 4.6 Playlist APIs
+
+### GET /api/playlists
+
+Get current user playlists.
+
+Auth: Protected
+
+Success response (`200`):
+
+```json
+{
+  "message": "Lay playlist thanh cong!",
+  "playlists": [
+    {
+      "id": "playlist-uuid",
+      "name": "My Playlist",
+      "description": "...",
+      "_count": {
+        "items": 2
+      }
+    }
+  ]
+}
+```
+
+### POST /api/playlists
+
+Create a new playlist.
+
+Auth: Protected
+
+Request body:
+
+```json
+{
+  "name": "Favorites",
+  "description": "My favorite videos"
+}
+```
+
+### POST /api/playlists/:id/items
+
+Add a video to a playlist.
+
+Auth: Protected
+
+Request body:
+
+```json
+{
+  "videoId": "video-uuid",
+  "order": 1
+}
+```
 
 ## 5. RBAC Summary
 

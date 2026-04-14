@@ -33,11 +33,13 @@ const authRoutes = require("./routes/auth.routes");
 const adminRoutes = require("./routes/admin.routes");
 const videoRoutes = require("./routes/video.routes");
 const userRoutes = require("./routes/user.routes");
+const playlistRoutes = require("./routes/playlist.routes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/videos", videoRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/playlists", playlistRoutes);
 
 // ====================================
 // GLOBAL ERROR HANDLER (phải đặt cuối cùng)

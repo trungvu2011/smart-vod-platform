@@ -7,6 +7,7 @@ const {
   getVideoById,
   updateVideo,
   deleteVideo,
+  getAiSummary,
 } = require("../controllers/video.controller");
 const {
   addComment,
@@ -24,8 +25,11 @@ router.get("/", listVideos);
 // Public (optionalAuth): Chi tiết video — nếu đăng nhập thì biết thêm thông tin
 router.get("/:id", optionalAuth, getVideoById);
 
+// Public: Get AI Summary
+router.get("/:id/ai-summary", optionalAuth, getAiSummary);
+
 // Protected: Upload video (multipart/form-data)
-router.post("/upload", verifyToken, upload.single("videoFile"), uploadVideo);
+router.post("/upload", verifyToken, upload.fields([{ name: 'videoFile', maxCount: 1 }, { name: 'thumbnailFile', maxCount: 1 }]), uploadVideo);
 
 // Protected: Cập nhật video (Creator or Admin)
 router.put("/:id", verifyToken, updateVideo);

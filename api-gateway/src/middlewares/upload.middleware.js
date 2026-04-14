@@ -11,11 +11,11 @@ const upload = multer({
     fileSize: 500 * 1024 * 1024, // Giới hạn kích thước file 500MB
   },
   fileFilter: (req, file, cb) => {
-    // Chỉ cho phép upload video
-    if (file.mimetype.startsWith("video/")) {
+    // allow video and image
+    if (file.mimetype.startsWith("video/") || file.mimetype.startsWith("image/")) {
       cb(null, true);
     } else {
-      cb(new Error("Chỉ cho phép tải lên các định dạng Video!"), false);
+      cb(new Error("Only video and image formats are allowed!"), false);
     }
   },
 });

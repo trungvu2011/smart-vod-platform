@@ -35,9 +35,9 @@ export default function SettingsPage() {
         <div className="md:w-64 flex-shrink-0">
           {/* User card */}
           <div className="flex items-center gap-3 p-4 mb-4 rounded-wp-lg bg-wp-surface-container">
-            <img src={user?.avatar} alt={user?.name} className="w-12 h-12 rounded-full" />
+            <img src={user?.avatarUrl || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + user?.fullName} alt={user?.fullName} className="w-12 h-12 rounded-full hidden md:block" />
             <div>
-              <p className="text-sm font-semibold text-wp-on-surface">{user?.name}</p>
+              <p className="text-sm font-semibold text-wp-on-surface">{user?.fullName}</p>
               <p className="text-xs text-wp-on-surface-variant">{user?.title}</p>
             </div>
           </div>
@@ -76,7 +76,7 @@ export default function SettingsPage() {
                 <div>
                   <label className="block text-xs font-medium text-wp-on-surface-variant mb-1.5">Full Name</label>
                   <input
-                    defaultValue={user?.name}
+                    defaultValue={user?.fullName}
                     className="w-full px-4 py-3 bg-wp-surface-lowest rounded-wp text-sm text-wp-on-surface
                       focus:outline-none focus:bg-wp-surface-container-highest focus:shadow-wp-glow transition-all"
                   />

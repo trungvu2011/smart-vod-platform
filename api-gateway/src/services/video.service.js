@@ -8,14 +8,14 @@ const crypto = require("crypto");
  * Upload video: lưu file lên MinIO, tạo DB record PENDING, đẩy job BullMQ.
  * Trả về ngay lập tức — KHÔNG chờ FFmpeg hay AI xử lý.
  */
-const uploadVideo = async (userId, file, title, description) => {
+const uploadVideo = async (userId, file, thumbnailFile, title, description, category, visibility) => {
   if (!file) {
-    const err = new Error("Vui lòng đính kèm một file video!");
+    const err = new Error("Please attach a video file!");
     err.statusCode = 400;
     throw err;
   }
   if (!title) {
-    const err = new Error("Vui lòng nhập tiêu đề (title) cho video!");
+    const err = new Error("Please enter a title for the video!");
     err.statusCode = 400;
     throw err;
   }
@@ -38,13 +38,25 @@ const uploadVideo = async (userId, file, title, description) => {
   // 3. Tạo URL trỏ tới file gốc trên MinIO
   const rawUrl = `${process.env.MINIO_PUBLIC_URL}/${bucketName}/${uniqueFilename}`;
 
+  // 3.5. Upload thumbnail if exists
+  let thumbUrl = null;
+  if (thumbnailFile) {
+    const tExt = path.extname(thumbnailFile.originalname);
+    const tName = `thumbnails/${crypto.randomUUID()}${tExt}`;
+    await minioClient.putObject(bucketName, tName, thumbnailFile.buffer, thumbnailFile.size, { "Content-Type": thumbnailFile.mimetype });
+    thumbUrl = `${process.env.MINIO_PUBLIC_URL}/${bucketName}/${tName}`;
+  }
+
   // 4. Lưu vào Database với status PENDING
   const newVideo = await prisma.video.create({
     data: {
       creatorId: userId,
       title: title,
       description: description || null,
+      category: category || null,
+      visibility: visibility || "ORG",
       status: "PENDING",
+      thumbnailUrl: thumbUrl,
     },
   });
 
@@ -62,12 +74,15 @@ const uploadVideo = async (userId, file, title, description) => {
  * Lấy danh sách video — có phân trang và lọc theo status.
  * Mặc định chỉ hiển thị video READY cho trang chủ.
  */
-const listVideos = async (page = 1, limit = 12, status = null) => {
+const listVideos = async (page = 1, limit = 12, status = null, category = null) => {
   const skip = (page - 1) * limit;
 
   const where = {};
   if (status) {
     where.status = status;
+  }
+  if (category) {
+    where.category = category;
   }
 
   const [videos, total] = await Promise.all([
@@ -80,6 +95,9 @@ const listVideos = async (page = 1, limit = 12, status = null) => {
         creator: {
           select: { id: true, fullName: true, avatarUrl: true },
         },
+        metadata: {
+          select: { duration: true }
+        }
       },
     }),
     prisma.video.count({ where }),
@@ -221,10 +239,19 @@ const deleteVideo = async (videoId, userId, userRole) => {
   await prisma.video.delete({ where: { id: videoId } });
 };
 
+const getAiSummary = async (videoId) => {
+  const metadata = await prisma.videoMetadata.findUnique({
+    where: { videoId }
+  });
+  if (!metadata) return null;
+  return metadata.aiSummary;
+};
+
 module.exports = {
   uploadVideo,
   listVideos,
   getVideoById,
   updateVideo,
   deleteVideo,
+  getAiSummary,
 };

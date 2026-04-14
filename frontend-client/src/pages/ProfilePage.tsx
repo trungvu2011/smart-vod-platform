@@ -1,30 +1,11 @@
 import {
-  Eye, BookOpen, Award, TrendingUp, CheckCircle,
-  Medal, Play, ListPlus, MessageSquare, Mail,
+   BookOpen, Award, TrendingUp, CheckCircle,
+  Medal, Play, Mail,
   Building2, MapPin, Pencil, ArrowRight, Lock, Users,
-  Video, ChevronRight
+  Video
 } from 'lucide-react';
-import { useAuthStore } from '../store/useAuthStore';
-import { playlists, activityFeed } from '../data/mockData';
 
-const activityIcon: Record<string, { icon: React.ReactNode; bg: string }> = {
-  completed: {
-    icon: <Award size={20} className="text-wp-tertiary" />,
-    bg: 'bg-wp-tertiary-container/30',
-  },
-  watched: {
-    icon: <Play size={20} className="text-wp-primary" />,
-    bg: 'bg-wp-primary-container/30',
-  },
-  created: {
-    icon: <ListPlus size={20} className="text-wp-secondary" />,
-    bg: 'bg-wp-secondary-container/30',
-  },
-  replied: {
-    icon: <MessageSquare size={20} className="text-wp-outline" />,
-    bg: 'bg-wp-surface-container-highest',
-  },
-};
+import { useAuthStore } from '../store/useAuthStore';
 
 export default function ProfilePage() {
   const { user } = useAuthStore();
@@ -40,8 +21,8 @@ export default function ProfilePage() {
           <div className="relative group flex-shrink-0">
             <div className="absolute -inset-1 bg-wp-gradient rounded-full opacity-25 blur-sm transition duration-700 group-hover:opacity-50" />
             <img
-              src={user.avatar}
-              alt={user.name}
+              src={user.avatarUrl || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + user.fullName}
+              alt={user.fullName}
               className="relative w-40 h-40 lg:w-48 lg:h-48 rounded-full object-cover
                 border-4 border-wp-surface shadow-wp-ambient"
             />
@@ -50,7 +31,7 @@ export default function ProfilePage() {
           {/* Info */}
           <div className="space-y-2 text-center md:text-left flex-1">
             <h1 className="text-5xl font-black tracking-tighter text-wp-on-surface">
-              {user.name}
+              {user.fullName}
             </h1>
             <p className="text-xl text-wp-primary font-medium">{user.title}</p>
 
@@ -85,21 +66,21 @@ export default function ProfilePage() {
         {[
           {
             label: 'Videos Viewed',
-            value: user.stats.videosViewed.toLocaleString(),
+            value: user.videosViewed.toLocaleString(),
             trend: '+12% this month',
             trendIcon: <TrendingUp size={14} />,
             watermark: <Play size={80} />,
           },
           {
-            label: 'Courses Completed',
-            value: user.stats.coursesCompleted.toString(),
-            trend: 'Next milestone at 50',
+            label: 'Playlists Created',
+            value: '0', 
+            trend: 'Keep it going',
             trendIcon: <CheckCircle size={14} />,
             watermark: <BookOpen size={80} />,
           },
           {
             label: 'Certifications',
-            value: user.stats.certifications.toString().padStart(2, '0'),
+            value: user.certifications.toString().padStart(2, '0'),
             trend: '3 pending review',
             trendIcon: <Medal size={14} />,
             watermark: <Award size={80} />,
@@ -128,10 +109,10 @@ export default function ProfilePage() {
         ))}
       </section>
 
-      {/* ── Main Two Column Layout ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-12">
-        {/* Curated Playlists (Asymmetric Grid) */}
-        <div className="xl:col-span-2 space-y-8">
+      {/* ── Main Layout ── */}
+      <div className="space-y-8">
+        {/* Curated Playlists */}
+        <div className="space-y-8">
           <div className="flex justify-between items-end">
             <div>
               <h2 className="text-3xl font-black tracking-tight text-wp-on-surface">
@@ -145,11 +126,11 @@ export default function ProfilePage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Playlist Card 1 */}
             <div className="group relative aspect-video rounded-3xl overflow-hidden cursor-pointer">
               <img
-                src={playlists[0]?.thumbnailUrl || 'https://picsum.photos/seed/strategy24/800/450'}
+                src={'https://picsum.photos/seed/strategy24/800/450'}
                 alt="Strategy 2024 Kickoff"
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
               />
@@ -172,7 +153,7 @@ export default function ProfilePage() {
             {/* Playlist Card 2 */}
             <div className="group relative aspect-video rounded-3xl overflow-hidden cursor-pointer">
               <img
-                src={playlists[1]?.thumbnailUrl || 'https://picsum.photos/seed/compliance/800/450'}
+                src={'https://picsum.photos/seed/compliance/800/450'}
                 alt="Compliance Essentials"
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
               />
@@ -191,38 +172,6 @@ export default function ProfilePage() {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Activity Feed (Glass List) */}
-        <div className="space-y-8">
-          <div>
-            <h2 className="text-3xl font-black tracking-tight text-wp-on-surface">Activity</h2>
-            <p className="text-wp-on-surface-variant/60">Recent engagement</p>
-          </div>
-
-          <div className="space-y-4">
-            {activityFeed.map((act) => {
-              const style = activityIcon[act.type] || activityIcon.replied;
-              return (
-                <div
-                  key={act.id}
-                  className="bg-wp-surface-container-low p-5 rounded-2xl flex gap-4
-                    hover:bg-wp-surface-container-high transition-all duration-200"
-                >
-                  <div className={`w-12 h-12 rounded-xl ${style.bg} flex items-center justify-center flex-shrink-0`}>
-                    {style.icon}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-wp-on-surface">{act.title}</p>
-                    <p className="text-xs text-wp-on-surface-variant mt-1">{act.subtitle}</p>
-                    <p className="text-[10px] text-wp-on-surface-variant/40 mt-2 font-bold uppercase tracking-[0.15em]">
-                      {act.timeAgo}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
           </div>
         </div>
       </div>

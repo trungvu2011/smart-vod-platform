@@ -1,28 +1,30 @@
 import { useState, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-  Upload, X, Film, Tag, Globe,
+  Upload, X, Film, Globe,
   Lock, Users, Clock, CheckCircle, AlertCircle,
-  Image as ImageIcon, Plus
+  Image as ImageIcon
 } from 'lucide-react';
+import { videoApi } from '../api/videoApi';
 
-type UploadState = 'idle' | 'uploading' | 'processing' | 'done' | 'error';
-type Visibility = 'public' | 'organization' | 'private';
+type UploadState = 'idle' | 'ready' | 'uploading' | 'processing' | 'done' | 'error';
+type Visibility = 'PUBLIC' | 'ORG' | 'PRIVATE';
 
 export default function UploadVideoPage() {
+  const navigate = useNavigate();
   const [uploadState, setUploadState] = useState<UploadState>('idle');
   const [progress, setProgress] = useState(0);
   const [dragActive, setDragActive] = useState(false);
-  const [fileName, setFileName] = useState('');
-  const [fileSize, setFileSize] = useState('');
+  
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
 
   // Form fields
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
-  const [tags, setTags] = useState<string[]>([]);
-  const [tagInput, setTagInput] = useState('');
-  const [visibility, setVisibility] = useState<Visibility>('organization');
-  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+  const [visibility, setVisibility] = useState<Visibility>('ORG');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const thumbInputRef = useRef<HTMLInputElement>(null);
@@ -33,9 +35,9 @@ export default function UploadVideoPage() {
   ];
 
   const visibilityOptions: { key: Visibility; label: string; desc: string; icon: React.ReactNode }[] = [
-    { key: 'public', label: 'Public', desc: 'Anyone with the link', icon: <Globe size={18} /> },
-    { key: 'organization', label: 'Organization', desc: 'All employees', icon: <Users size={18} /> },
-    { key: 'private', label: 'Private', desc: 'Only you', icon: <Lock size={18} /> },
+    { key: 'PUBLIC', label: 'Public', desc: 'Anyone with the link', icon: <Globe size={18} /> },
+    { key: 'ORG', label: 'Organization', desc: 'All employees', icon: <Users size={18} /> },
+    { key: 'PRIVATE', label: 'Private', desc: 'Only you', icon: <Lock size={18} /> },
   ];
 
   const formatSize = (bytes: number) => {
@@ -51,64 +53,71 @@ export default function UploadVideoPage() {
     else if (e.type === 'dragleave') setDragActive(false);
   }, []);
 
-  const simulateUpload = (name: string, size: string) => {
-    setFileName(name);
-    setFileSize(size);
-    setUploadState('uploading');
-    setProgress(0);
+  const selectVideoFile = useCallback((file: File) => {
+    setVideoFile(file);
+    setUploadState('ready');
 
     // Auto-fill title from filename
-    const baseName = name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
-    setTitle(baseName.charAt(0).toUpperCase() + baseName.slice(1));
-
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setUploadState('processing');
-          setTimeout(() => setUploadState('done'), 2000);
-          return 100;
-        }
-        return prev + Math.random() * 12;
-      });
-    }, 300);
-  };
+    if (!title) {
+      const baseName = file.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
+      setTitle(baseName.charAt(0).toUpperCase() + baseName.slice(1));
+    }
+  }, [title]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
     const file = e.dataTransfer.files?.[0];
-    if (file) simulateUpload(file.name, formatSize(file.size));
-  }, []);
+    if (file) selectVideoFile(file);
+  }, [selectVideoFile]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) simulateUpload(file.name, formatSize(file.size));
+    if (file) selectVideoFile(file);
   };
 
   const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setThumbnailFile(file);
       const reader = new FileReader();
       reader.onload = (ev) => setThumbnailPreview(ev.target?.result as string);
       reader.readAsDataURL(file);
     }
   };
 
-  const addTag = () => {
-    const cleaned = tagInput.trim().toLowerCase();
-    if (cleaned && !tags.includes(cleaned) && tags.length < 8) {
-      setTags([...tags, cleaned]);
-      setTagInput('');
+  const handlePublish = async () => {
+    if (!videoFile || !title) return;
+    setUploadState('uploading');
+    setProgress(0);
+
+    const formData = new FormData();
+    formData.append('videoFile', videoFile);
+    if (thumbnailFile) {
+      formData.append('thumbnailFile', thumbnailFile);
     }
-  };
+    formData.append('title', title);
+    if (description) formData.append('description', description);
+    if (category) formData.append('category', category.toUpperCase());
+    formData.append('visibility', visibility);
 
-  const removeTag = (t: string) => setTags(tags.filter((tag) => tag !== t));
-
-  const handlePublish = () => {
-    // TODO: call API
-    console.log({ title, description, category, tags, visibility });
+    try {
+      await videoApi.uploadVideo(formData, (progressEvent) => {
+        const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
+        setProgress(percentCompleted);
+        if (percentCompleted >= 100) {
+          setUploadState('processing'); // The backend is processing/extracting
+        }
+      });
+      setUploadState('done');
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 2000);
+    } catch (error) {
+      console.error(error);
+      setUploadState('error');
+    }
   };
 
   return (
@@ -179,16 +188,18 @@ export default function UploadVideoPage() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-wp-on-surface truncate">{fileName}</p>
-                  <p className="text-xs text-wp-on-surface-variant">{fileSize}</p>
+                  <p className="text-sm font-semibold text-wp-on-surface truncate">{videoFile?.name}</p>
+                  <p className="text-xs text-wp-on-surface-variant">{videoFile ? formatSize(videoFile.size) : ''}</p>
                 </div>
-                <button
-                  onClick={() => { setUploadState('idle'); setProgress(0); }}
-                  className="p-1.5 rounded-lg hover:bg-wp-surface-container-high text-wp-on-surface-variant
-                    hover:text-wp-on-surface transition-colors"
-                >
-                  <X size={18} />
-                </button>
+                {uploadState === 'ready' && (
+                  <button
+                    onClick={() => { setUploadState('idle'); setVideoFile(null); }}
+                    className="p-1.5 rounded-lg hover:bg-wp-surface-container-high text-wp-on-surface-variant
+                      hover:text-wp-on-surface transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
+                )}
               </div>
 
               {/* Progress */}
@@ -205,14 +216,19 @@ export default function UploadVideoPage() {
                   <p className="text-[11px] text-wp-on-surface-variant font-medium">
                     {uploadState === 'uploading'
                       ? `Uploading... ${Math.min(Math.round(progress), 100)}%`
-                      : 'Processing video...'}
+                      : 'Processing video... Please wait...'}
                   </p>
                 </div>
               )}
 
               {uploadState === 'done' && (
                 <p className="text-xs text-green-400 font-semibold flex items-center gap-1.5">
-                  <CheckCircle size={14} /> Upload complete — fill in the details below.
+                  <CheckCircle size={14} /> Upload complete — redirecting to dashboard.
+                </p>
+              )}
+              {uploadState === 'error' && (
+                <p className="text-xs text-red-400 font-semibold flex items-center gap-1.5">
+                  <AlertCircle size={14} /> An error occurred while uploading.
                 </p>
               )}
             </div>
@@ -271,44 +287,7 @@ export default function UploadVideoPage() {
               </select>
             </div>
 
-            {/* Tags */}
-            <div>
-              <label className="block text-xs font-semibold text-wp-on-surface-variant mb-1.5 uppercase tracking-wide">
-                Tags
-              </label>
-              <div className="flex flex-wrap gap-2 mb-2">
-                {tags.map((t) => (
-                  <span
-                    key={t}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium
-                      bg-wp-primary-container/15 text-wp-primary-fixed"
-                  >
-                    <Tag size={11} />
-                    {t}
-                    <button onClick={() => removeTag(t)} className="hover:text-wp-error transition-colors">
-                      <X size={12} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <input
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
-                  placeholder="Add a tag and press Enter"
-                  className="flex-1 px-4 py-2.5 bg-wp-surface-lowest rounded-xl text-sm text-wp-on-surface
-                    placeholder-wp-outline focus:outline-none focus:shadow-wp-glow transition-all"
-                />
-                <button
-                  onClick={addTag}
-                  className="bg-wp-surface-container-high hover:bg-wp-surface-bright
-                    text-wp-on-surface px-4 rounded-xl transition-colors"
-                >
-                  <Plus size={16} />
-                </button>
-              </div>
-            </div>
+
           </div>
         </div>
 
@@ -381,7 +360,7 @@ export default function UploadVideoPage() {
             <h3 className="text-sm font-bold text-wp-on-surface uppercase tracking-wide">Publish</h3>
             <button
               onClick={handlePublish}
-              disabled={uploadState !== 'done' || !title}
+              disabled={uploadState === 'uploading' || uploadState === 'processing' || !title || !videoFile}
               className="w-full bg-wp-gradient text-wp-on-primary font-bold py-3.5 rounded-xl
                 shadow-lg transition-all flex items-center justify-center gap-2
                 hover:shadow-wp-glow active:scale-[0.98]
@@ -391,7 +370,7 @@ export default function UploadVideoPage() {
               Publish Now
             </button>
             <button
-              disabled={uploadState !== 'done' || !title}
+              disabled={uploadState === 'uploading' || uploadState === 'processing' || !title || !videoFile}
               className="w-full bg-wp-surface-container-high text-wp-on-surface font-medium py-3 rounded-xl
                 transition-all flex items-center justify-center gap-2
                 hover:bg-wp-surface-bright active:scale-[0.98]

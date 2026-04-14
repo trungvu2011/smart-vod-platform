@@ -27,7 +27,7 @@ export default function VideoPlayer({ src, poster, autoPlay = false, onTimeUpdat
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [isHovering, setIsHovering] = useState(false);
-  const hideTimer = useRef<ReturnType<typeof setTimeout>>();
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Initialize HLS or native video
   useEffect(() => {

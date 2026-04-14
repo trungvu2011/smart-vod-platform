@@ -7,7 +7,7 @@ const createUser = async (req, res, next) => {
     const result = await adminService.createUser({ fullName, email, role });
 
     res.status(201).json({
-      message: "Tạo tài khoản nhân sự thành công!",
+      message: "User created successfully.",
       user: result.user,
       defaultPassword: result.defaultPassword,
     });
@@ -22,7 +22,7 @@ const listUsers = async (req, res, next) => {
     const users = await adminService.listUsers();
 
     res.status(200).json({
-      message: "Lấy danh sách nhân sự thành công!",
+      message: "Users retrieved successfully.",
       users,
     });
   } catch (error) {
