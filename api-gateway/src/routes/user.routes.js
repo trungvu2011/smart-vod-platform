@@ -1,22 +1,44 @@
 const express = require("express");
 const router = express.Router();
-const { 
-  getHistory, 
+const {
+  getHistory,
   upsertHistory,
   getLikedVideos,
   getNotifications,
   getActivities,
-  getSessions
+  getSessions,
+  getMe,
+  updateMe,
+  markNotificationRead,
+  markAllNotificationsRead,
+  revokeSession,
 } = require("../controllers/user.controller");
 const { verifyToken } = require("../middlewares/auth.middleware");
 
 // Tất cả route user đều cần đăng nhập
-router.get("/history", verifyToken, getHistory);
-router.post("/history", verifyToken, upsertHistory);
+router.use(verifyToken);
 
-router.get("/liked-videos", verifyToken, getLikedVideos);
-router.get("/notifications", verifyToken, getNotifications);
-router.get("/activities", verifyToken, getActivities);
-router.get("/sessions", verifyToken, getSessions);
+// ── Profile ──────────────────────────────────────────────────────────────────
+router.get("/me", getMe);
+router.put("/me", updateMe);
+
+// ── Watch History ─────────────────────────────────────────────────────────────
+router.get("/history", getHistory);
+router.post("/history", upsertHistory);
+
+// ── Liked Videos ──────────────────────────────────────────────────────────────
+router.get("/liked-videos", getLikedVideos);
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+router.get("/notifications", getNotifications);
+router.post("/notifications/read-all", markAllNotificationsRead);
+router.patch("/notifications/:id/read", markNotificationRead);
+
+// ── Activities ────────────────────────────────────────────────────────────────
+router.get("/activities", getActivities);
+
+// ── Sessions ──────────────────────────────────────────────────────────────────
+router.get("/sessions", getSessions);
+router.delete("/sessions/:id", revokeSession);
 
 module.exports = router;

@@ -60,6 +60,35 @@ Most APIs return:
 - `/api/users`
 - `/api/playlists`
 
+### 3.1 Complete User Route List
+
+| Method | Path | Auth | Description |
+|--------|------|------|-----------|
+| GET | `/api/users/me` | Protected | Get current user profile |
+| PUT | `/api/users/me` | Protected | Update profile (fullName, avatarUrl, title, department) |
+| GET | `/api/users/history` | Protected | Get watch history |
+| POST | `/api/users/history` | Protected | Upsert watch progress |
+| GET | `/api/users/liked-videos` | Protected | Get liked videos |
+| GET | `/api/users/notifications` | Protected | Get notifications |
+| POST | `/api/users/notifications/read-all` | Protected | Mark all notifications read |
+| PATCH | `/api/users/notifications/:id/read` | Protected | Mark one notification read |
+| GET | `/api/users/activities` | Protected | Get activities (empty, no model yet) |
+| GET | `/api/users/sessions` | Protected | Get active sessions |
+| DELETE | `/api/users/sessions/:id` | Protected | Revoke a session |
+
+### 3.2 Complete Playlist Route List
+
+| Method | Path | Auth | Description |
+|--------|------|------|-----------|
+| GET | `/api/playlists` | Protected | Get all playlists of current user |
+| POST | `/api/playlists` | Protected | Create a new playlist |
+| GET | `/api/playlists/:id` | Protected | Get playlist detail with video items |
+| PUT | `/api/playlists/:id` | Protected | Update playlist name/isPrivate |
+| DELETE | `/api/playlists/:id` | Protected | Delete a playlist |
+| POST | `/api/playlists/:id/videos` | Protected | Add video to playlist |
+| DELETE | `/api/playlists/:id/videos/:videoId` | Protected | Remove video from playlist |
+
+
 ## 4. Detailed API Reference
 
 ## 4.1 Auth APIs

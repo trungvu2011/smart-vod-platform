@@ -17,6 +17,8 @@ const getHistory = async (userId) => {
           status: true,
           viewCount: true,
           createdAt: true,
+          category: true,
+          metadata: { select: { duration: true, hlsMasterUrl: true } },
           creator: {
             select: { id: true, fullName: true, avatarUrl: true },
           },
@@ -31,7 +33,6 @@ const getHistory = async (userId) => {
 /**
  * Upsert lịch sử xem — lưu lại lastSecond (giây cuối cùng đã xem)
  * để hỗ trợ tính năng "Xem tiếp".
- * Nếu chưa có record → tạo mới. Đã có → cập nhật lastSecond + watchedAt.
  */
 const upsertHistory = async (userId, videoId, lastSecond = 0) => {
   if (!videoId) {
@@ -40,7 +41,6 @@ const upsertHistory = async (userId, videoId, lastSecond = 0) => {
     throw err;
   }
 
-  // Kiểm tra video tồn tại
   const video = await prisma.video.findUnique({ where: { id: videoId } });
   if (!video) {
     const err = new Error("Video not found!");
@@ -48,34 +48,28 @@ const upsertHistory = async (userId, videoId, lastSecond = 0) => {
     throw err;
   }
 
-  // Tìm record history hiện có (cùng userId + videoId)
   const existing = await prisma.watchHistory.findFirst({
     where: { userId, videoId },
   });
 
   if (existing) {
-    // Cập nhật
     const updated = await prisma.watchHistory.update({
       where: { id: existing.id },
-      data: {
-        lastSecond: lastSecond,
-        watchedAt: new Date(),
-      },
+      data: { lastSecond, watchedAt: new Date() },
     });
     return updated;
   } else {
-    // Tạo mới
     const created = await prisma.watchHistory.create({
-      data: {
-        userId,
-        videoId,
-        lastSecond: lastSecond,
-      },
+      data: { userId, videoId, lastSecond },
     });
     return created;
   }
 };
 
+/**
+ * Lấy danh sách video đã like của user.
+ * Trả về array { likedAt, video } để frontend biết thời gian like.
+ */
 const getLikedVideos = async (userId) => {
   const likes = await prisma.like.findMany({
     where: { userId },
@@ -84,33 +78,183 @@ const getLikedVideos = async (userId) => {
       video: {
         include: {
           creator: { select: { id: true, fullName: true, avatarUrl: true } },
-          metadata: { select: { duration: true } }
-        }
-      }
-    }
+          metadata: { select: { duration: true, hlsMasterUrl: true } },
+          _count: { select: { likes: true, comments: true } },
+        },
+      },
+    },
   });
-  return likes.map(l => l.video);
+
+  return likes.map((l) => ({
+    likedAt: l.createdAt,
+    video: l.video,
+  }));
 };
 
 const getNotifications = async (userId) => {
   return await prisma.notification.findMany({
     where: { userId },
-    orderBy: { createdAt: "desc" }
+    orderBy: { createdAt: "desc" },
   });
 };
 
 const getActivities = async (userId) => {
-  return await prisma.activity.findMany({
-    where: { userId },
-    orderBy: { createdAt: "desc" }
-  });
+  // Model Activity chưa có trong schema — trả về array rỗng
+  return [];
 };
 
 const getSessions = async (userId) => {
   return await prisma.session.findMany({
     where: { userId },
-    orderBy: { lastActive: "desc" }
+    orderBy: { lastActive: "desc" },
   });
 };
 
-module.exports = { getHistory, upsertHistory, getLikedVideos, getNotifications, getActivities, getSessions };
+// ─── NEW: GET /api/users/me ───────────────────────────────────────────────────
+/**
+ * Lấy thông tin profile đầy đủ của user đang đăng nhập.
+ */
+const getMe = async (userId) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      role: true,
+      avatarUrl: true,
+      title: true,
+      department: true,
+      videosViewed: true,
+      certifications: true,
+      createdAt: true,
+      _count: {
+        select: {
+          playlists: true,
+          watchHistory: true,
+        },
+      },
+    },
+  });
+
+  if (!user) {
+    const err = new Error("User not found!");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  return user;
+};
+
+// ─── NEW: PUT /api/users/me ───────────────────────────────────────────────────
+/**
+ * Cập nhật thông tin profile của user đang đăng nhập.
+ * Các field được phép update: fullName, avatarUrl, title, department.
+ */
+const updateMe = async (userId, data) => {
+  const { fullName, avatarUrl, title, department } = data;
+
+  if (fullName !== undefined && fullName.trim().length === 0) {
+    const err = new Error("Full name cannot be empty!");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      ...(fullName !== undefined && { fullName: fullName.trim() }),
+      ...(avatarUrl !== undefined && { avatarUrl }),
+      ...(title !== undefined && { title }),
+      ...(department !== undefined && { department }),
+    },
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      role: true,
+      avatarUrl: true,
+      title: true,
+      department: true,
+      videosViewed: true,
+      certifications: true,
+      createdAt: true,
+    },
+  });
+
+  return updated;
+};
+
+// ─── NEW: PATCH /api/users/notifications/:id/read ────────────────────────────
+/**
+ * Đánh dấu một notification là đã đọc.
+ */
+const markNotificationRead = async (userId, notificationId) => {
+  const notification = await prisma.notification.findFirst({
+    where: { id: notificationId, userId },
+  });
+
+  if (!notification) {
+    const err = new Error("Notification not found!");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  return await prisma.notification.update({
+    where: { id: notificationId },
+    data: { read: true },
+  });
+};
+
+// ─── NEW: POST /api/users/notifications/read-all ─────────────────────────────
+/**
+ * Đánh dấu tất cả notifications của user là đã đọc.
+ */
+const markAllNotificationsRead = async (userId) => {
+  const result = await prisma.notification.updateMany({
+    where: { userId, read: false },
+    data: { read: true },
+  });
+
+  return result.count;
+};
+
+// ─── NEW: DELETE /api/users/sessions/:id ─────────────────────────────────────
+/**
+ * Thu hồi một session. Không cho phép revoke session hiện tại.
+ */
+const revokeSession = async (userId, sessionId) => {
+  const session = await prisma.session.findFirst({
+    where: { id: sessionId, userId },
+  });
+
+  if (!session) {
+    const err = new Error("Session not found!");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (session.isCurrent) {
+    const err = new Error(
+      "Cannot revoke the current active session! Please logout instead."
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  await prisma.session.delete({ where: { id: sessionId } });
+};
+
+module.exports = {
+  getHistory,
+  upsertHistory,
+  getLikedVideos,
+  getNotifications,
+  getActivities,
+  getSessions,
+  getMe,
+  updateMe,
+  markNotificationRead,
+  markAllNotificationsRead,
+  revokeSession,
+};
