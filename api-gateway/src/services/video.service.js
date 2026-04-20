@@ -78,7 +78,7 @@ const uploadVideo = async (userId, file, thumbnailFile, title, description, cate
  * Lấy danh sách video — có phân trang và lọc theo status.
  * Mặc định chỉ hiển thị video READY cho trang chủ.
  */
-const listVideos = async (page = 1, limit = 12, status = null, category = null) => {
+const listVideos = async (page = 1, limit = 12, status = null, category = null, q = null) => {
   const skip = (page - 1) * limit;
 
   const where = {};
@@ -87,6 +87,13 @@ const listVideos = async (page = 1, limit = 12, status = null, category = null) 
   }
   if (category) {
     where.category = category;
+  }
+  if (q) {
+    where.OR = [
+      { title: { contains: q, mode: 'insensitive' } },
+      { description: { contains: q, mode: 'insensitive' } },
+      { creator: { fullName: { contains: q, mode: 'insensitive' } } },
+    ];
   }
 
   const [videos, total] = await Promise.all([

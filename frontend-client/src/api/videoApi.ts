@@ -10,10 +10,11 @@ interface PaginationInfo {
 }
 
 export const videoApi = {
-  getVideos: async (page = 1, limit = 12, category?: string, status?: string) => {
+  getVideos: async (page = 1, limit = 12, category?: string, status?: string, q?: string) => {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (category) params.append('category', category);
     if (status) params.append('status', status);
+    if (q) params.append('q', q);
     
     const res = await api.get<{ videos: Video[], pagination: PaginationInfo }>('/videos?' + params.toString());
     return res.data;

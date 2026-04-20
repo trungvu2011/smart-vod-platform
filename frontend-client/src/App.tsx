@@ -14,6 +14,7 @@ import ProfilePage from "./pages/ProfilePage";
 import LikedVideosPage from "./pages/LikedVideosPage";
 import UploadVideoPage from "./pages/UploadVideoPage";
 import MyVideosPage from "./pages/MyVideosPage";
+import SearchPage from "./pages/SearchPage";
 import { useAuthStore } from "./store/useAuthStore";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -61,6 +62,7 @@ function App() {
           <Route path="/liked" element={<LikedVideosPage />} />
           <Route path="/upload" element={<UploadVideoPage />} />
           <Route path="/my-videos" element={<MyVideosPage />} />
+          <Route path="/search" element={<SearchPage />} />
         </Route>
 
         {/* Catch-all */}

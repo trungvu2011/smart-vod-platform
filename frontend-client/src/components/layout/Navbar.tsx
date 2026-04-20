@@ -1,18 +1,24 @@
 import { Search, Bell, ChevronDown } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 export default function Navbar() {
   const { user, logout } = useAuthStore();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [showUserMenu, setShowUserMenu] = useState(false);
   const navigate = useNavigate();
 
+  useEffect(() => {
+    setSearchQuery(searchParams.get('q') || '');
+  }, [searchParams]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: navigate to search results
-    console.log('Search:', searchQuery);
+    if (searchQuery.trim()) {
+      navigate('/search?q=' + encodeURIComponent(searchQuery.trim()));
+    }
   };
 
   return (

@@ -39,8 +39,9 @@ const listVideos = async (req, res, next) => {
     const limit = parseInt(req.query.limit) || 12;
     const status = req.query.status || null;
     const category = req.query.category || null;
+    const q = req.query.q || null;
 
-    const result = await videoService.listVideos(page, limit, status, category);
+    const result = await videoService.listVideos(page, limit, status, category, q);
 
     res.status(200).json({
       message: "Videos retrieved successfully.",
