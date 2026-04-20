@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Upload, X, Film, Globe,
@@ -6,6 +6,7 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { videoApi } from '../api/videoApi';
+import { API_BASE_URL } from '../api/axios';
 
 type UploadState = 'idle' | 'ready' | 'uploading' | 'processing' | 'done' | 'error';
 type Visibility = 'PUBLIC' | 'ORG' | 'PRIVATE';
@@ -14,7 +15,18 @@ export default function UploadVideoPage() {
   const navigate = useNavigate();
   const [uploadState, setUploadState] = useState<UploadState>('idle');
   const [progress, setProgress] = useState(0);
+  const [workerProgress, setWorkerProgress] = useState(0);
   const [dragActive, setDragActive] = useState(false);
+  const eventSourceRef = useRef<EventSource | null>(null);
+
+  // Cleanup EventSource on unmount
+  useEffect(() => {
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+    };
+  }, []);
   
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
@@ -103,17 +115,46 @@ export default function UploadVideoPage() {
     formData.append('visibility', visibility);
 
     try {
-      await videoApi.uploadVideo(formData, (progressEvent) => {
+      const resp = await videoApi.uploadVideo(formData, (progressEvent) => {
         const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
         setProgress(percentCompleted);
         if (percentCompleted >= 100) {
           setUploadState('processing'); // The backend is processing/extracting
         }
       });
-      setUploadState('done');
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 2000);
+      
+      const videoId = resp.video?.id;
+      if (videoId) {
+        const eventSource = new EventSource(`${API_BASE_URL}/videos/${videoId}/progress`);
+        eventSourceRef.current = eventSource;
+
+        eventSource.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            setWorkerProgress(data.progress || 0);
+
+            if (data.state === 'completed') {
+              setUploadState('done');
+              eventSource.close();
+              setTimeout(() => navigate('/dashboard'), 2000);
+            } else if (data.state === 'failed') {
+              setUploadState('error');
+              eventSource.close();
+            }
+          } catch(e) {
+            console.error("Failed to parse SSE data", e);
+          }
+        };
+
+        eventSource.onerror = () => {
+          console.error("SSE connection error");
+          setUploadState('error');
+          eventSource.close();
+        };
+      } else {
+        setUploadState('done');
+        setTimeout(() => navigate('/dashboard'), 2000);
+      }
     } catch (error) {
       console.error(error);
       setUploadState('error');
@@ -208,16 +249,19 @@ export default function UploadVideoPage() {
                   <div className="h-2 bg-wp-surface-container-highest rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all duration-300 ${
-                        uploadState === 'processing' ? 'bg-wp-tertiary animate-pulse-soft' : 'bg-wp-primary-container'
+                        uploadState === 'processing' ? 'bg-wp-tertiary shadow-wp-glow shadow-wp-tertiary/20' : 'bg-wp-primary-container'
                       }`}
-                      style={{ width: `${Math.min(progress, 100)}%` }}
+                      style={{ width: `${Math.min(uploadState === 'processing' ? workerProgress : progress, 100)}%` }}
                     />
                   </div>
-                  <p className="text-[11px] text-wp-on-surface-variant font-medium">
-                    {uploadState === 'uploading'
-                      ? `Uploading... ${Math.min(Math.round(progress), 100)}%`
-                      : 'Processing video... Please wait...'}
-                  </p>
+                  <div className="flex justify-between items-center text-[11px] font-medium text-wp-on-surface-variant">
+                    <p>
+                      {uploadState === 'uploading'
+                        ? `Đang đẩy lên mây... ${Math.min(Math.round(progress), 100)}%`
+                        : `Worker đang xử lý... ${Math.min(Math.round(workerProgress), 100)}%`}
+                    </p>
+                    <p className="opacity-60">{uploadState === 'processing' && 'AI & HLS Pipeline'}</p>
+                  </div>
                 </div>
               )}
 

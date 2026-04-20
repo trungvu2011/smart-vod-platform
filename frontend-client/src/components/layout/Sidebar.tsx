@@ -3,7 +3,7 @@ import {
   Home, GraduationCap,
   History, ThumbsUp, ListVideo,
   Settings, ChevronLeft, ChevronRight,
-  Play, PlusCircle
+  Play, PlusCircle, Video as VideoIcon
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useSidebarStore } from '../../store/useSidebarStore';
@@ -20,7 +20,8 @@ const discoveryItems: NavItem[] = [
 ];
 
 const personalItems: NavItem[] = [
-  { to: '/my-courses', icon: <ListVideo size={20} />, label: 'My Courses' },
+  { to: '/my-videos', icon: <VideoIcon size={20} />, label: 'My Videos' },
+  { to: '/my-courses', icon: <ListVideo size={20} />, label: 'My Playlists' },
   { to: '/history', icon: <History size={20} />, label: 'History' },
   { to: '/liked', icon: <ThumbsUp size={20} />, label: 'Liked Videos' },
 ];

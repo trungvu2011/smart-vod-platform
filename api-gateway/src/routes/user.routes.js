@@ -12,6 +12,7 @@ const {
   markNotificationRead,
   markAllNotificationsRead,
   revokeSession,
+  getMyVideos,
 } = require("../controllers/user.controller");
 const { verifyToken } = require("../middlewares/auth.middleware");
 
@@ -21,6 +22,7 @@ router.use(verifyToken);
 // ── Profile ──────────────────────────────────────────────────────────────────
 router.get("/me", getMe);
 router.put("/me", updateMe);
+router.get("/me/videos", getMyVideos);
 
 // ── Watch History ─────────────────────────────────────────────────────────────
 router.get("/history", getHistory);

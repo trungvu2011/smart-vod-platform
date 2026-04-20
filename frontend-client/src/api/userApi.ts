@@ -12,6 +12,11 @@ export const userApi = {
     return res.data.user;
   },
 
+  getMyVideos: async () => {
+    const res = await api.get<{ videos: Video[] }>('/users/me/videos');
+    return res.data.videos;
+  },
+
   changePassword: async (oldPassword?: string, newPassword?: string) => {
     const res = await api.post('/auth/change-password', { oldPassword, newPassword });
     return res.data;

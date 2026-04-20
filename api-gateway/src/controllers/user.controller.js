@@ -75,6 +75,16 @@ const getMe = async (req, res, next) => {
   }
 };
 
+// [GET] /api/users/me/videos — Lấy video đã tạo
+const getMyVideos = async (req, res, next) => {
+  try {
+    const videos = await userService.getMyVideos(req.user.id);
+    res.status(200).json({ message: "My videos retrieved.", videos });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // [PUT] /api/users/me — Cập nhật profile
 const updateMe = async (req, res, next) => {
   try {
@@ -133,4 +143,5 @@ module.exports = {
   markNotificationRead,
   markAllNotificationsRead,
   revokeSession,
+  getMyVideos,
 };

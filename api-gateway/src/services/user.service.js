@@ -146,6 +146,21 @@ const getMe = async (userId) => {
   return user;
 };
 
+/**
+ * Lấy danh sách video do chính user tạo ra (bao gồm pending, processing, ready, failed).
+ */
+const getMyVideos = async (userId) => {
+  const videos = await prisma.video.findMany({
+    where: { creatorId: userId },
+    orderBy: { createdAt: "desc" },
+    include: {
+      creator: { select: { id: true, fullName: true, avatarUrl: true } },
+      metadata: { select: { duration: true } },
+    },
+  });
+  return videos;
+};
+
 // ─── NEW: PUT /api/users/me ───────────────────────────────────────────────────
 /**
  * Cập nhật thông tin profile của user đang đăng nhập.
@@ -257,4 +272,5 @@ module.exports = {
   markNotificationRead,
   markAllNotificationsRead,
   revokeSession,
+  getMyVideos,
 };
