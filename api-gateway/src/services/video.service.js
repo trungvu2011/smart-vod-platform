@@ -61,11 +61,15 @@ const uploadVideo = async (userId, file, thumbnailFile, title, description, cate
   });
 
   // 5. Đẩy Job vào BullMQ để Worker xử lý (HLS, thumbnail, AI, ...)
-  await videoQueue.add("process-hls", {
-    videoId: newVideo.id,
-    originalFilename: uniqueFilename,
-    fileUrl: rawUrl,
-  });
+  await videoQueue.add(
+    "process-hls", 
+    {
+      videoId: newVideo.id,
+      originalFilename: uniqueFilename,
+      fileUrl: rawUrl,
+    },
+    { jobId: newVideo.id } // Set custom jobId to easily track progress
+  );
 
   return newVideo;
 };
@@ -247,6 +251,21 @@ const getAiSummary = async (videoId) => {
   return metadata.aiSummary;
 };
 
+/**
+ * Get job progress from BullMQ using videoId (which is used as jobId)
+ */
+const getVideoProgress = async (videoId) => {
+  const job = await videoQueue.getJob(videoId);
+  if (!job) return null;
+  const state = await job.getState();
+  let progress = job.progress || 0;
+  
+  return {
+    state,
+    progress: typeof progress === 'number' ? progress : 0,
+  };
+};
+
 module.exports = {
   uploadVideo,
   listVideos,
@@ -254,4 +273,5 @@ module.exports = {
   updateVideo,
   deleteVideo,
   getAiSummary,
+  getVideoProgress,
 };

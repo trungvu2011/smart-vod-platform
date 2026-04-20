@@ -23,7 +23,7 @@ const extractAudio = async (rawFilePath, audioPath) => {
 };
 
 // Hàm gọi AI Whisper (Local) để chép phụ đề
-const transcribeAudio = async (audioPath, tempDir) => {
+const transcribeAudio = async (audioPath, tempDir, job) => {
   console.log("[AI] [2/4] Bắt đầu chạy Whisper...");
   const isWindows = process.platform === "win32";
   const whisperExe = isWindows
@@ -59,7 +59,7 @@ const transcribeAudio = async (audioPath, tempDir) => {
 };
 
 // Hàm Upload file VTT lên kho lưu trữ MinIO
-const uploadSubtitleToMinIO = async (vttFilePath, minioClient) => {
+const uploadSubtitleToMinIO = async (vttFilePath, minioClient, job) => {
   console.log("[AI] [3/4] Đang lưu phụ đề lên MinIO...");
   const vttObjectName = `captions/${Date.now()}_subtitles.vtt`;
 
@@ -74,7 +74,7 @@ const uploadSubtitleToMinIO = async (vttFilePath, minioClient) => {
 };
 
 // Hàm gọi AI Groq (Llama 3) tóm tắt nội dung
-const generateSummary = async (vttFilePath) => {
+const generateSummary = async (vttFilePath, job) => {
   console.log("[AI] [4/4] Đang tạo tóm tắt bằng LLM...");
   try {
     const vttContent = fs.readFileSync(vttFilePath, "utf-8");
@@ -106,17 +106,21 @@ const generateSummary = async (vttFilePath) => {
   }
 };
 
-const runLocalWhisper = async (rawFilePath, tempDir, minioClient) => {
+const runLocalWhisper = async (rawFilePath, tempDir, minioClient, job) => {
   try {
     const audioPath = path.join(tempDir, "audio.mp3");
 
     await extractAudio(rawFilePath, audioPath);
+    if (job) await job.updateProgress(65);
 
-    const vttFilePath = await transcribeAudio(audioPath, tempDir);
+    const vttFilePath = await transcribeAudio(audioPath, tempDir, job);
+    if (job) await job.updateProgress(85);
 
-    const transcriptUrl = await uploadSubtitleToMinIO(vttFilePath, minioClient);
+    const transcriptUrl = await uploadSubtitleToMinIO(vttFilePath, minioClient, job);
+    if (job) await job.updateProgress(90);
 
-    const finalSummary = await generateSummary(vttFilePath);
+    const finalSummary = await generateSummary(vttFilePath, job);
+    if (job) await job.updateProgress(95);
 
     return {
       transcript_url: transcriptUrl,

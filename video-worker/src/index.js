@@ -29,6 +29,10 @@ worker.on("completed", async (job, returnvalue) => {
 
   // Cập nhật video sang READY và upsert metadata theo schema DB mới.
   try {
+    const aiSummary = returnvalue.aiSummary ? returnvalue.aiSummary : null;
+    const subtitleUrl = returnvalue.transcriptUrl ? returnvalue.transcriptUrl : null;
+    const duration = returnvalue.duration || 0;
+
     await prisma.$transaction([
       prisma.video.updateMany({
         where: { id: job.data.videoId },
@@ -38,15 +42,16 @@ worker.on("completed", async (job, returnvalue) => {
         where: { videoId: job.data.videoId },
         update: {
           hlsMasterUrl: returnvalue.hlsUrl,
-          subtitleUrl: returnvalue.transcriptUrl || null,
-          aiSummary: returnvalue.aiSummary || null,
+          subtitleUrl: subtitleUrl,
+          aiSummary: aiSummary,
+          duration: duration,
         },
         create: {
           videoId: job.data.videoId,
           hlsMasterUrl: returnvalue.hlsUrl,
-          subtitleUrl: returnvalue.transcriptUrl || null,
-          aiSummary: returnvalue.aiSummary || null,
-          duration: 0,
+          subtitleUrl: subtitleUrl,
+          aiSummary: aiSummary,
+          duration: duration,
         },
       }),
     ]);

@@ -8,6 +8,7 @@ const {
   updateVideo,
   deleteVideo,
   getAiSummary,
+  streamVideoProgress,
 } = require("../controllers/video.controller");
 const {
   addComment,
@@ -28,6 +29,9 @@ router.get("/:id", optionalAuth, getVideoById);
 
 // Public: Get AI Summary
 router.get("/:id/ai-summary", optionalAuth, getAiSummary);
+
+// Public (hoặc optionalAuth): Lắng nghe tiến trình xử lý Video (SSE)
+router.get("/:id/progress", streamVideoProgress);
 
 // Protected: Upload video (multipart/form-data)
 router.post(

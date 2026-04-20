@@ -136,4 +136,48 @@ const getAiSummary = async (req, res, next) => {
   }
 };
 
-module.exports = { uploadVideo, listVideos, getVideoById, updateVideo, deleteVideo, getAiSummary };
+// [GET] /api/videos/:id/progress — SSE Endpoint to stream job progress
+const streamVideoProgress = async (req, res) => {
+  const { id } = req.params;
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
+
+  res.write(`data: ${JSON.stringify({ status: "connected", progress: 0 })}\n\n`);
+
+  const pollInterval = setInterval(async () => {
+    try {
+      const progressInfo = await videoService.getVideoProgress(id);
+
+      if (progressInfo) {
+        res.write(`data: ${JSON.stringify(progressInfo)}\n\n`);
+
+        if (progressInfo.state === "completed" || progressInfo.state === "failed") {
+          clearInterval(pollInterval);
+          res.end();
+        }
+      }
+    } catch (error) {
+      console.error("[SSE ERROR]", error);
+      clearInterval(pollInterval);
+      res.end();
+    }
+  }, 1000); // Báo cáo mỗi 1 giây
+
+  req.on("close", () => {
+    clearInterval(pollInterval);
+    res.end();
+  });
+};
+
+module.exports = { 
+  uploadVideo, 
+  listVideos, 
+  getVideoById, 
+  updateVideo, 
+  deleteVideo, 
+  getAiSummary,
+  streamVideoProgress
+};
