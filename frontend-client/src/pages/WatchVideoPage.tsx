@@ -7,6 +7,8 @@ import VideoPlayer from '../components/video/VideoPlayer';
 import VideoCard from '../components/ui/VideoCard';
 import GlassPanel from '../components/ui/GlassPanel';
 import CommentSection from '../components/ui/CommentSection';
+import AddToPlaylistModal from '../components/ui/AddToPlaylistModal';
+import CreatePlaylistModal from '../components/ui/CreatePlaylistModal';
 import { videoApi } from '../api/videoApi';
 import { userApi } from '../api/userApi';
 import { commentApi } from '../api/commentApi';
@@ -21,6 +23,8 @@ export default function WatchVideoPage() {
   const [loading, setLoading] = useState(true);
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -115,7 +119,10 @@ export default function WatchVideoPage() {
                 >
                   <ThumbsUp size={16} className={isLiked ? 'fill-current' : ''} /> {likeCount}
                 </button>
-                <button className="btn-ghost flex items-center gap-2 text-xs">
+                <button 
+                  onClick={() => setIsAddOpen(true)}
+                  className="btn-ghost flex items-center gap-2 text-xs"
+                >
                   <Bookmark size={16} /> Save
                 </button>
                 <button className="btn-ghost flex items-center gap-2 text-xs">
@@ -205,6 +212,24 @@ export default function WatchVideoPage() {
           </aside>
         )}
       </div>
+
+      {isAddOpen && id && (
+        <AddToPlaylistModal
+          videoId={id}
+          onClose={() => setIsAddOpen(false)}
+          onCreateNewClick={() => setIsCreateOpen(true)}
+        />
+      )}
+
+      {isCreateOpen && (
+        <CreatePlaylistModal
+          onClose={() => setIsCreateOpen(false)}
+          onCreated={() => {
+            // When created from Watch page, open the add modal directly
+            setIsAddOpen(true);
+          }}
+        />
+      )}
     </div>
   );
 }

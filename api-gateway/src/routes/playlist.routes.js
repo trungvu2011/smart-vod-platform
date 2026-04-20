@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   createPlaylist,
   getUserPlaylists,
+  listPublicPlaylists,
   getPlaylistById,
   updatePlaylist,
   deletePlaylist,
@@ -17,6 +18,9 @@ router.use(verifyToken);
 // ── Collection ────────────────────────────────────────────────────────────────
 router.get("/", getUserPlaylists);
 router.post("/", createPlaylist);
+
+// ── Public — MUST be before /:id to avoid conflict ────────────────────────────
+router.get("/public", listPublicPlaylists);
 
 // ── Single Playlist ───────────────────────────────────────────────────────────
 router.get("/:id", getPlaylistById);

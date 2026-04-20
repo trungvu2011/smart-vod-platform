@@ -14,9 +14,49 @@ const getUserPlaylists = async (userId) => {
     where: { userId },
     include: {
       _count: { select: { items: true } },
+      items: { select: { videoId: true } },
     },
     orderBy: { createdAt: "desc" },
   });
+};
+
+// ─── NEW: GET /api/playlists/public ──────────────────────────────────────────
+/**
+ * Lấy tất cả playlist công khai (isPrivate = false) của mọi user.
+ * Dùng cho trang Course Library.
+ */
+const listPublicPlaylists = async ({ page = 1, limit = 24, q = null } = {}) => {
+  const skip = (page - 1) * limit;
+  const where = {
+    isPrivate: false,
+    ...(q && {
+      name: { contains: q, mode: "insensitive" },
+    }),
+  };
+
+  const [playlists, total] = await Promise.all([
+    prisma.playlist.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      include: {
+        _count: { select: { items: true } },
+        user: { select: { id: true, fullName: true, avatarUrl: true } },
+      },
+    }),
+    prisma.playlist.count({ where }),
+  ]);
+
+  return {
+    playlists,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
 };
 
 const addVideoToPlaylist = async (userId, playlistId, videoId) => {
@@ -83,6 +123,7 @@ const getPlaylistById = async (userId, playlistId) => {
         },
       },
       _count: { select: { items: true } },
+      user: { select: { id: true, fullName: true, avatarUrl: true, title: true } },
     },
   });
 
@@ -151,6 +192,7 @@ const deletePlaylist = async (userId, playlistId) => {
 module.exports = {
   createPlaylist,
   getUserPlaylists,
+  listPublicPlaylists,
   getPlaylistById,
   updatePlaylist,
   deletePlaylist,

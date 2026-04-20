@@ -53,9 +53,9 @@ function App() {
           <Route path="/" element={<DashboardPage />} />
           <Route path="/watch/:id" element={<WatchVideoPage />} />
           <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/courses" element={<CourseLibraryPage />} />
-          <Route path="/courses/:id" element={<CourseDetailPage />} />
-          <Route path="/courses/:id/play" element={<CoursePlayerPage />} />
+          <Route path="/playlists" element={<CourseLibraryPage />} />
+          <Route path="/playlists/:id" element={<CourseDetailPage />} />
+          <Route path="/playlists/:id/play" element={<CoursePlayerPage />} />
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/my-courses" element={<MyCoursesPage />} />
           <Route path="/profile" element={<ProfilePage />} />

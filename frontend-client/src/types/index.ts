@@ -62,6 +62,12 @@ export interface Playlist {
   createdAt: string;
   _count?: { items: number };
   items?: PlaylistItem[];
+  user?: {
+    id: string;
+    fullName: string;
+    avatarUrl?: string;
+    title?: string;
+  };
 }
 
 export interface PlaylistItem {

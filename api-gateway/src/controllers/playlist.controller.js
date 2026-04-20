@@ -26,6 +26,21 @@ const getUserPlaylists = async (req, res, next) => {
   }
 };
 
+// [GET] /api/playlists/public — Lấy TOÀN BỘ playlist công khai
+const listPublicPlaylists = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 24, q } = req.query;
+    const result = await playlistService.listPublicPlaylists({
+      page: Number(page),
+      limit: Number(limit),
+      q: q || null,
+    });
+    res.status(200).json({ message: "Public playlists retrieved.", ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // [POST] /api/playlists/:id/videos
 const addVideo = async (req, res, next) => {
   try {
@@ -97,6 +112,7 @@ const deletePlaylist = async (req, res, next) => {
 module.exports = {
   createPlaylist,
   getUserPlaylists,
+  listPublicPlaylists,
   getPlaylistById,
   updatePlaylist,
   deletePlaylist,
