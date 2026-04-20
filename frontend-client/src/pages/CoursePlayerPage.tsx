@@ -1,11 +1,13 @@
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { Check, Play, Clock, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import VideoPlayer from '../components/video/VideoPlayer';
 import GlassPanel from '../components/ui/GlassPanel';
 import CommentSection from '../components/ui/CommentSection';
-import { playlists, discoveryVideos, recentUploads, sampleTranscript } from '../data/mockData';
-import type { Video } from '../types';
+import { sampleTranscript } from '../data/mockData';
+import { playlistApi } from '../api/playlistApi';
+import { userApi } from '../api/userApi';
+import type { Video, Playlist } from '../types';
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -15,20 +17,55 @@ function formatDuration(seconds: number): string {
 
 export default function CoursePlayerPage() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const requestedVideoId = searchParams.get('v');
 
-  // Find the playlist (course)
-  const playlist = playlists.find((p) => p.id === id) ?? playlists[0];
-
-  // Use videos as "lessons"
-  const videos: Video[] = [...discoveryVideos, ...recentUploads].slice(0, playlist._count?.items ?? 4);
-
-  const [activeVideo, setActiveVideo] = useState<Video>(videos[0]);
+  const [playlist, setPlaylist] = useState<Playlist | null>(null);
+  const [videos, setVideos] = useState<Video[]>([]);
+  const [activeVideo, setActiveVideo] = useState<Video | null>(null);
   const [showTranscript, setShowTranscript] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // Compute which videos are "done" (mock: first 2)
   const completedIds = new Set(videos.slice(0, 2).map((v) => v.id));
 
-  const videoSrc = activeVideo.metadata?.hlsMasterUrl ?? 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
+  useEffect(() => {
+    if (id) {
+      playlistApi.getPlaylistById(id)
+        .then((data) => {
+          setPlaylist(data);
+          const vids = (data.items || [])
+            .sort((a, b) => a.order - b.order)
+            .map(i => i.video)
+            .filter((v): v is Video => !!v);
+          setVideos(vids);
+
+          if (vids.length > 0) {
+            const initial = vids.find(v => v.id === requestedVideoId) || vids[0];
+            setActiveVideo(initial);
+          }
+        })
+        .catch(console.error)
+        .finally(() => setLoading(false));
+    }
+  }, [id, requestedVideoId]);
+
+  useEffect(() => {
+    if (activeVideo) {
+      userApi.upsertHistory(activeVideo.id, 0).catch(console.error);
+    }
+  }, [activeVideo]);
+
+  if (loading) {
+    return <div className="p-10 text-center animate-pulse text-wp-on-surface-variant">Loading player...</div>;
+  }
+
+  if (!playlist || videos.length === 0 || !activeVideo) {
+    return <div className="p-10 text-center text-wp-on-surface-variant">No videos available in this learning path.</div>;
+  }
+
+  // If no HLS master URL, fallback to default for UI testing
+  const videoSrc = activeVideo.metadata?.hlsMasterUrl ?? 'https://raw.githubusercontent.com/muxinc/mux-player/main/packages/mux-video/test/fixtures/video.mp4';
 
   return (
     <div className="animate-slide-up -m-6">
@@ -39,7 +76,7 @@ export default function CoursePlayerPage() {
           <div className="flex-shrink-0">
             <VideoPlayer
               src={videoSrc}
-              poster={activeVideo.thumbnailUrl}
+              poster={activeVideo.thumbnailUrl || ''}
             />
           </div>
 
@@ -50,7 +87,7 @@ export default function CoursePlayerPage() {
                 VIDEO {(videos.indexOf(activeVideo) + 1).toString().padStart(2, '0')} • PLAYING
               </span>
               <h1 className="text-xl font-bold text-wp-on-surface">{activeVideo.title}</h1>
-              <p className="text-sm text-wp-on-surface-variant mt-1">{activeVideo.creator.fullName}</p>
+              <p className="text-sm text-wp-on-surface-variant mt-1">{activeVideo.creator?.fullName}</p>
             </div>
 
             {/* AI Lesson Summary */}
@@ -106,7 +143,7 @@ export default function CoursePlayerPage() {
             </div>
 
             {/* Comments */}
-            <CommentSection />
+            <CommentSection videoId={activeVideo.id} />
           </div>
         </div>
 

@@ -1,20 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Heart, Clock, Eye, Trash2, SlidersHorizontal } from 'lucide-react';
-import { discoveryVideos, recentUploads, upNextVideos } from '../data/mockData';
+import { userApi } from '../api/userApi';
+import { commentApi } from '../api/commentApi';
 import type { Video } from '../types';
-
-// Mock liked videos — combine various sources
-const likedVideos: (Video & { likedAt: string })[] = [
-  { ...discoveryVideos[0], likedAt: '2024-10-28T17:00:00Z' },
-  { ...upNextVideos[0], likedAt: '2024-10-27T12:30:00Z' },
-  { ...discoveryVideos[1], likedAt: '2024-10-26T09:15:00Z' },
-  { ...recentUploads[2], likedAt: '2024-10-25T20:00:00Z' },
-  { ...discoveryVideos[3], likedAt: '2024-10-24T14:45:00Z' },
-  { ...recentUploads[0], likedAt: '2024-10-23T11:00:00Z' },
-  { ...upNextVideos[1], likedAt: '2024-10-22T08:30:00Z' },
-  { ...recentUploads[3], likedAt: '2024-10-21T16:20:00Z' },
-];
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -39,13 +28,35 @@ function timeAgo(dateStr: string): string {
 type SortOption = 'recent' | 'oldest' | 'most_viewed';
 
 export default function LikedVideosPage() {
+  const [likedVideos, setLikedVideos] = useState<{ likedAt: string; video: Video }[]>([]);
+  const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<SortOption>('recent');
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+
+  useEffect(() => {
+    userApi.getLikedVideos()
+      .then(setLikedVideos)
+      .catch(err => console.error(err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleUnlike = async (videoId: string) => {
+    try {
+      await commentApi.toggleLike(videoId);
+      setLikedVideos(prev => prev.filter(v => v.video.id !== videoId));
+    } catch (err) {
+      console.error('Failed to unlike', err);
+    }
+  };
+
+  if (loading) {
+    return <div className="p-10 text-center animate-pulse text-wp-on-surface-variant">Loading your liked videos...</div>;
+  }
 
   const sorted = [...likedVideos].sort((a, b) => {
     if (sortBy === 'recent') return new Date(b.likedAt).getTime() - new Date(a.likedAt).getTime();
     if (sortBy === 'oldest') return new Date(a.likedAt).getTime() - new Date(b.likedAt).getTime();
-    return b.viewCount - a.viewCount;
+    return b.video.viewCount - a.video.viewCount;
   });
 
   return (
@@ -80,76 +91,79 @@ export default function LikedVideosPage() {
 
       {/* Video list */}
       <div className="space-y-2">
-        {sorted.map((video, index) => (
-          <Link
-            key={`${video.id}-${index}`}
-            to={`/watch/${video.id}`}
-            className="flex items-center gap-5 p-4 rounded-wp-lg
-              hover:bg-wp-surface-container-high/50 transition-all duration-200 group"
-            onMouseEnter={() => setHoveredId(video.id)}
-            onMouseLeave={() => setHoveredId(null)}
-          >
-            {/* Index / Heart */}
-            <div className="w-8 text-center flex-shrink-0">
-              {hoveredId === video.id ? (
-                <Heart size={18} className="text-red-400 fill-red-400 mx-auto" />
-              ) : (
-                <span className="text-sm text-wp-outline tabular-nums">{index + 1}</span>
-              )}
-            </div>
+        {sorted.map((item, index) => {
+          const video = item.video;
+          return (
+            <Link
+              key={`${video.id}-${index}`}
+              to={`/watch/${video.id}`}
+              className="flex items-center gap-5 p-4 rounded-wp-lg
+                hover:bg-wp-surface-container-high/50 transition-all duration-200 group"
+              onMouseEnter={() => setHoveredId(video.id)}
+              onMouseLeave={() => setHoveredId(null)}
+            >
+              {/* Index / Heart */}
+              <div className="w-8 text-center flex-shrink-0">
+                {hoveredId === video.id ? (
+                  <Heart size={18} className="text-red-400 fill-red-400 mx-auto" />
+                ) : (
+                  <span className="text-sm text-wp-outline tabular-nums">{index + 1}</span>
+                )}
+              </div>
 
-            {/* Thumbnail */}
-            <div className="relative w-56 aspect-video rounded-wp overflow-hidden flex-shrink-0">
-              <img
-                src={video.thumbnailUrl}
-                alt={video.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                loading="lazy"
-              />
-              <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 text-xs font-medium
-                bg-black/70 text-white rounded">
-                {formatDuration(video.metadata?.duration || 0)}
-              </span>
-            </div>
-
-            {/* Info */}
-            <div className="flex-1 min-w-0 py-2">
-              <h3 className="text-base font-semibold text-wp-on-surface group-hover:text-wp-primary
-                transition-colors line-clamp-1">
-                {video.title}
-              </h3>
-              <p className="text-sm text-wp-on-surface-variant mt-1.5">
-                {video.creator.fullName}
-              </p>
-              <div className="flex items-center gap-3 mt-2 text-sm text-wp-outline">
-                <span className="flex items-center gap-1">
-                  <Eye size={14} />
-                  {video.viewCount.toLocaleString()} views
-                </span>
-                <span>•</span>
-                <span className="flex items-center gap-1">
-                  <Clock size={14} />
-                  Liked {timeAgo(video.likedAt)}
+              {/* Thumbnail */}
+              <div className="relative w-56 aspect-video rounded-wp overflow-hidden flex-shrink-0">
+                <img
+                  src={video.thumbnailUrl || 'https://picsum.photos/seed/' + video.id + '/400/225'}
+                  alt={video.title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 bg-wp-surface-container-high"
+                  loading="lazy"
+                />
+                <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 text-xs font-medium
+                  bg-black/70 text-white rounded">
+                  {formatDuration(video.metadata?.duration || 0)}
                 </span>
               </div>
-            </div>
 
-            {/* Remove button (on hover) */}
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                // TODO: remove from liked
-              }}
-              className="p-2 rounded-lg opacity-0 group-hover:opacity-100
-                hover:bg-wp-surface-bright text-wp-outline hover:text-wp-error
-                transition-all duration-200 flex-shrink-0"
-              title="Remove from liked"
-            >
-              <Trash2 size={16} />
-            </button>
-          </Link>
-        ))}
+              {/* Info */}
+              <div className="flex-1 min-w-0 py-2">
+                <h3 className="text-base font-semibold text-wp-on-surface group-hover:text-wp-primary
+                  transition-colors line-clamp-1">
+                  {video.title}
+                </h3>
+                <p className="text-sm text-wp-on-surface-variant mt-1.5">
+                  {video.creator.fullName}
+                </p>
+                <div className="flex items-center gap-3 mt-2 text-sm text-wp-outline">
+                  <span className="flex items-center gap-1">
+                    <Eye size={14} />
+                    {video.viewCount.toLocaleString()} views
+                  </span>
+                  <span>•</span>
+                  <span className="flex items-center gap-1">
+                    <Clock size={14} />
+                    Liked {timeAgo(item.likedAt)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Remove button (on hover) */}
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleUnlike(video.id);
+                }}
+                className="p-2 rounded-lg opacity-0 group-hover:opacity-100
+                  hover:bg-wp-surface-bright text-wp-outline hover:text-wp-error
+                  transition-all duration-200 flex-shrink-0"
+                title="Remove from liked"
+              >
+                <Trash2 size={16} />
+              </button>
+            </Link>
+          );
+        })}
       </div>
 
       {likedVideos.length === 0 && (

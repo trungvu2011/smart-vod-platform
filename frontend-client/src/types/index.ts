@@ -7,7 +7,7 @@ export interface User {
   fullName: string;
   email: string;
   avatarUrl?: string;
-  role: 'USER' | 'ADMIN';
+  role: "USER" | "ADMIN";
   title?: string;
   department?: string;
   // Client-side computed / extra fields from API
@@ -22,7 +22,7 @@ export interface VideoCreator {
 }
 
 export interface VideoMetadata {
-  duration: number;        // seconds, computed by video-worker
+  duration: number; // seconds, computed by video-worker
   hlsMasterUrl?: string;
   subtitleUrl?: string;
 }
@@ -32,13 +32,13 @@ export interface Video {
   title: string;
   description?: string;
   thumbnailUrl?: string;
-  status: 'PENDING' | 'PROCESSING' | 'READY' | 'FAILED' | 'BANNED';
+  status: "PENDING" | "PROCESSING" | "READY" | "FAILED" | "BANNED";
   viewCount: number;
   createdAt: string;
   creator: VideoCreator;
   metadata?: VideoMetadata;
   category?: string;
-  visibility: 'PUBLIC' | 'ORG' | 'PRIVATE';
+  visibility: "PUBLIC" | "ORG" | "PRIVATE";
   _count?: {
     likes: number;
     comments: number;
@@ -49,7 +49,7 @@ export interface HistoryItem {
   id: string;
   userId: string;
   videoId: string;
-  lastSecond: number;      // seconds watched up to
+  lastSecond: number; // seconds watched up to
   watchedAt: string;
   video: Video;
 }
@@ -79,18 +79,23 @@ export interface Comment {
   parentId?: string;
   content: string;
   createdAt: string;
+  likes?: number;
+  liked?: boolean;
   user: {
     id: string;
     fullName: string;
     avatarUrl?: string;
   };
-  _count?: { replies: number };
+  _count?: {
+    replies: number;
+    likes?: number;
+  };
 }
 
 export interface Attachment {
   id: string;
   name: string;
-  type: 'pdf' | 'xls' | 'doc' | 'ppt';
+  type: "pdf" | "xls" | "doc" | "ppt";
   size: string;
   url: string;
 }
@@ -109,7 +114,7 @@ export interface TranscriptEntry {
 
 export interface Notification {
   id: string;
-  type: 'training' | 'townhall' | 'course_update' | 'system';
+  type: "training" | "townhall" | "course_update" | "system";
   title: string;
   message: string;
   read: boolean;

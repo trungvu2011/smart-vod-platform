@@ -5,7 +5,9 @@ const aiService = require("../services/ai.service");
 
 const ffmpeg = require("fluent-ffmpeg");
 const ffmpegInstaller = require("@ffmpeg-installer/ffmpeg");
+const ffprobeInstaller = require("@ffprobe-installer/ffprobe");
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+ffmpeg.setFfprobePath(ffprobeInstaller.path);
 
 const processVideo = async (job) => {
   // Lấy thông tin video cần xử lý từ job data
@@ -24,7 +26,21 @@ const processVideo = async (job) => {
   try {
     // 2. Tải video gốc từ kho MinIO xuống "thớt"
     console.log("[WORKER] [1/4] Đang tải file gốc từ MinIO về worker...");
+    await job.updateProgress(2);
     await minioClient.fGetObject(bucketName, originalFilename, inputFilePath);
+    await job.updateProgress(5);
+
+    // Tìm độ dài video (duration) bằng ffprobe
+    const videoDuration = await new Promise((resolve) => {
+      ffmpeg.ffprobe(inputFilePath, (err, metadata) => {
+        if (err || !metadata || !metadata.format) {
+          resolve(0);
+        } else {
+          resolve(Math.round(metadata.format.duration) || 0);
+        }
+      });
+    });
+    console.log(`[WORKER] Độ dài video: ${videoDuration} giây`);
 
     // 3. Dùng FFmpeg băm nhỏ video ra chuẩn HLS đa độ phân giải (ABR)
     // 3. Dùng FFmpeg băm nhỏ video ra chuẩn HLS đa độ phân giải (ABR)
@@ -111,6 +127,13 @@ const processVideo = async (job) => {
         // Gắn "máy nghe lén" xem FFmpeg sinh ra câu lệnh gì
         .on("start", (commandLine) => {
           console.log("🚀 Lệnh FFmpeg đang chạy:\n", commandLine);
+        })
+        .on("progress", (progress) => {
+          if (progress.percent) {
+            // Mapping FFmpeg progress to 5% -> 60%
+            const overallPercent = 5 + Math.floor((progress.percent / 100) * 55);
+            job.updateProgress(Math.min(overallPercent, 60));
+          }
         })
         .on("end", () => resolve())
         // FFmpeg có thể bị crash lúc tắt, nhưng nếu file m3u8 đã có rồi thì vẫn coi như thành công
@@ -216,15 +239,19 @@ stream_0.m3u8`;
       inputFilePath,
       tempDir,
       minioClient,
+      job,
     );
 
     // 5. Làm việc xong phải rửa "thớt" (Xóa file tạm kẻo sập ổ cứng)
+    await job.updateProgress(98);
     fs.rmSync(tempDir, { recursive: true, force: true });
+    await job.updateProgress(100);
     console.log(`[WORKER] Hoàn tất xử lý video ID: ${videoId}\n`);
 
     // Trả về đường link của file thực đơn (.m3u8) để sau này Frontend phát video
     return {
       hlsUrl: `${process.env.MINIO_PUBLIC_URL}/${bucketName}/hls/${videoId}/master.m3u8`,
+      duration: videoDuration,
       ...(aiResult && {
         transcriptUrl: aiResult.transcript_url,
         aiSummary: aiResult.ai_summary,

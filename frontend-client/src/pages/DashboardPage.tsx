@@ -4,8 +4,9 @@ import { Play, ChevronRight, Clock, BookOpen, TrendingUp, Eye } from 'lucide-rea
 import VideoCard from '../components/ui/VideoCard';
 import PlaylistCard from '../components/ui/PlaylistCard';
 import { videoApi } from '../api/videoApi';
-import { playlists, watchHistory } from '../data/mockData';
-import type { Video } from '../types';
+import { userApi } from '../api/userApi';
+import { playlistApi } from '../api/playlistApi';
+import type { Video, HistoryItem, Playlist } from '../types';
 
 function formatDuration(seconds: number = 0): string {
   const h = Math.floor(seconds / 3600);
@@ -24,13 +25,21 @@ function timeAgo(dateStr: string): string {
 
 export default function DashboardPage() {
   const [videos, setVideos] = useState<Video[]>([]);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadDashboard() {
       try {
-        const data = await videoApi.getVideos(1, 12, undefined, 'READY');
-        setVideos(data.videos);
+        const [videosData, historyData, playlistsData] = await Promise.all([
+          videoApi.getVideos(1, 12, undefined, 'READY'),
+          userApi.getHistory(),
+          playlistApi.getMyPlaylists(),
+        ]);
+        setVideos(videosData.videos);
+        setHistory(historyData);
+        setPlaylists(playlistsData);
       } catch (err) {
         console.error('Failed to load dashboard', err);
       } finally {
@@ -58,9 +67,9 @@ export default function DashboardPage() {
   const recentUploads = videos.slice(0, 8);
 
   // Continue watching — from watch history, videos not fully watched
-  const continueWatching = watchHistory
+  const continueWatching = history
     .filter(h => {
-      const dur = h.video.metadata?.duration ?? 0;
+      const dur = h.video?.metadata?.duration ?? 0;
       return dur > 0 && h.lastSecond / dur < 0.95;
     })
     .slice(0, 4);

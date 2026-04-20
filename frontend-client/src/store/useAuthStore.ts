@@ -35,11 +35,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const token = get().token;
     if (!token) return;
     try {
-      // For now, if we don't have a profile endpoint, we can rely on what we have, 
-      // but ideally we call GET /api/users/profile or similar.
-      // Since API doesn't have /api/users/profile explicitly in DOCS, we will simulate it
-      // or assume the front end will just require re-login if cache is lost.
-      // Let's assume we don't have a profile endpoint immediately, just set isAuthenticated.
+      const res = await api.get('/users/me');
+      set({ user: res.data.user, isAuthenticated: true });
     } catch {
       get().logout();
     }

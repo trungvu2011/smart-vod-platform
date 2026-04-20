@@ -8,6 +8,8 @@ import VideoCard from '../components/ui/VideoCard';
 import GlassPanel from '../components/ui/GlassPanel';
 import CommentSection from '../components/ui/CommentSection';
 import { videoApi } from '../api/videoApi';
+import { userApi } from '../api/userApi';
+import { commentApi } from '../api/commentApi';
 import type { Video, AISummary } from '../types';
 
 export default function WatchVideoPage() {
@@ -17,6 +19,8 @@ export default function WatchVideoPage() {
   const [aiSummary, setAiSummary] = useState<AISummary | null>(null);
   const [upNextVideos, setUpNextVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isLiked, setIsLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
 
   useEffect(() => {
     async function loadData() {
@@ -30,6 +34,10 @@ export default function WatchVideoPage() {
         ]);
         
         setVideo(videoData);
+        setLikeCount(videoData._count?.likes || 0);
+        // Track view history
+        userApi.upsertHistory(id, 0).catch(console.error);
+
         if (summaryData && summaryData.keyTakeaways) {
           setAiSummary(summaryData);
         } else {
@@ -47,6 +55,17 @@ export default function WatchVideoPage() {
     
     loadData();
   }, [id]);
+
+  const handleLike = async () => {
+    if (!video) return;
+    try {
+      const res = await commentApi.toggleLike(video.id);
+      setIsLiked(res.liked);
+      setLikeCount(prev => res.liked ? prev + 1 : prev - 1);
+    } catch (err) {
+      console.error('Failed to toggle like', err);
+    }
+  };
 
   if (loading) {
     return <div className="p-10 text-center animate-pulse text-wp-on-surface-variant">Loading video...</div>;
@@ -90,8 +109,11 @@ export default function WatchVideoPage() {
               </div>
 
               <div className="flex items-center gap-2">
-                <button className="btn-secondary flex items-center gap-2 text-xs">
-                  <ThumbsUp size={16} /> {video._count?.likes || 0}
+                <button 
+                  onClick={handleLike}
+                  className={`btn-secondary flex items-center gap-2 text-xs ${isLiked ? 'text-wp-primary border-wp-primary/30' : ''}`}
+                >
+                  <ThumbsUp size={16} className={isLiked ? 'fill-current' : ''} /> {likeCount}
                 </button>
                 <button className="btn-ghost flex items-center gap-2 text-xs">
                   <Bookmark size={16} /> Save
@@ -168,7 +190,7 @@ export default function WatchVideoPage() {
           )}
 
           {/* Comments */}
-          <CommentSection />
+          <CommentSection videoId={id} />
         </div>
 
         {/* Sidebar — Up Next */}

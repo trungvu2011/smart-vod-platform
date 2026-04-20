@@ -53,6 +53,7 @@ model User {
   videos        Video[]        // Video đã đăng
   comments      Comment[]      // Bình luận đã viết
   likes         Like[]         // Các lượt Like
+  commentLikes  CommentLike[]  // Các lượt Like bình luận
   playlists     Playlist[]     // Danh sách phát tự tạo
   watchHistory  WatchHistory[] // Lịch sử xem
   notifications Notification[]
@@ -109,8 +110,21 @@ model Comment {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
   replies   Comment[] @relation("CommentReplies")
+  likes     CommentLike[]
 
   @@map("comments")
+}
+
+model CommentLike {
+  userId    String   @map("user_id")
+  commentId String   @map("comment_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@id([userId, commentId])
+  @@map("comment_likes")
 }
 
 model Like {

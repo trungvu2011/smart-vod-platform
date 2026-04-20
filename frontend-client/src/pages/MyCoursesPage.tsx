@@ -1,15 +1,31 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Play, ChevronRight, Plus, BookOpen, Video as VideoIcon, Lock } from 'lucide-react';
 import PlaylistCard from '../components/ui/PlaylistCard';
-import { playlists } from '../data/mockData';
+import { playlistApi } from '../api/playlistApi';
+import type { Playlist } from '../types';
 
 export default function MyCoursesPage() {
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    playlistApi.getMyPlaylists()
+      .then(setPlaylists)
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
   // Separate private vs shared playlists for UX sections
   const myPlaylists = playlists.filter((p) => !p.isPrivate);
   const privatePlaylists = playlists.filter((p) => p.isPrivate);
 
   // Hero — show the first available playlist to continue
   const heroPlaylist = playlists[0];
+
+  if (loading) {
+    return <div className="p-10 text-center animate-pulse text-wp-on-surface-variant">Loading learning paths...</div>;
+  }
 
   return (
     <div className="space-y-10 animate-slide-up">

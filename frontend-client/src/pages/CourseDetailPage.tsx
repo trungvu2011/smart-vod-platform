@@ -1,7 +1,8 @@
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Play, Award, Subtitles, Infinity, BookOpen, Video as VideoIcon } from 'lucide-react';
-import { playlists, discoveryVideos, recentUploads } from '../data/mockData';
-import type { Video } from '../types';
+import { playlistApi } from '../api/playlistApi';
+import type { Playlist, Video } from '../types';
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -11,12 +12,32 @@ function formatDuration(seconds: number): string {
 
 export default function CourseDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const [playlist, setPlaylist] = useState<Playlist | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Find playlist by id, fall back to first
-  const playlist = playlists.find((p) => p.id === id) ?? playlists[0];
+  useEffect(() => {
+    if (id) {
+      playlistApi.getPlaylistById(id)
+        .then(setPlaylist)
+        .catch(console.error)
+        .finally(() => setLoading(false));
+    }
+  }, [id]);
 
-  // Use videos as "lessons" (in real app these come from playlist items API)
-  const videos: Video[] = [...discoveryVideos, ...recentUploads].slice(0, playlist._count?.items ?? 4);
+  if (loading) {
+    return <div className="p-10 text-center animate-pulse text-wp-on-surface-variant">Loading learning path details...</div>;
+  }
+
+  if (!playlist) {
+    return <div className="p-10 text-center text-wp-on-surface-variant">Learning path not found.</div>;
+  }
+
+  // Videos from playlist items
+  const videos: Video[] = (playlist.items || [])
+    .sort((a, b) => a.order - b.order)
+    .map((item) => item.video)
+    .filter((v): v is Video => !!v);
+
   const totalDuration = videos.reduce((acc, v) => acc + (v.metadata?.duration ?? 0), 0);
 
   // Mock progress (in real app: computed from watch history)
@@ -54,11 +75,7 @@ export default function CourseDetailPage() {
 
           {/* Title */}
           <h1 className="text-5xl lg:text-7xl font-extrabold tracking-tighter mb-8 leading-[0.95] text-wp-on-surface">
-            {playlist.name.split(' ').slice(0, -2).join(' ')}{' '}
-            <br />
-            <span className="text-wp-primary">
-              {playlist.name.split(' ').slice(-2).join(' ')}
-            </span>
+            {playlist.name}
           </h1>
 
           {/* CTA */}
@@ -93,63 +110,67 @@ export default function CourseDetailPage() {
           </div>
 
           <div className="space-y-4">
-            {videos.map((video, idx) => {
-              const isCompleted = idx < completedCount;
-              const isActive = idx === completedCount;
-              const num = String(idx + 1).padStart(2, '0');
-              const dur = video.metadata?.duration ?? 0;
+            {videos.length === 0 ? (
+              <p className="text-wp-on-surface-variant text-sm">This playlist has no videos yet.</p>
+            ) : (
+              videos.map((video, idx) => {
+                const isCompleted = idx < completedCount;
+                const isActive = idx === completedCount;
+                const num = String(idx + 1).padStart(2, '0');
+                const dur = video.metadata?.duration ?? 0;
 
-              return (
-                <Link
-                  key={video.id}
-                  to={`/playlists/${playlist.id}/play?v=${video.id}`}
-                  className={`group flex items-center gap-6 p-5 rounded-2xl transition-all cursor-pointer relative overflow-hidden
-                    ${isActive
-                      ? 'bg-wp-surface-bright border border-wp-primary/30 shadow-xl shadow-wp-primary/5'
-                      : 'bg-wp-surface-container-low hover:bg-wp-surface-container'
-                    }`}
-                >
-                  {isActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-wp-primary" />}
+                return (
+                  <Link
+                    key={video.id}
+                    to={`/playlists/${playlist.id}/play?v=${video.id}`}
+                    className={`group flex items-center gap-6 p-5 rounded-2xl transition-all cursor-pointer relative overflow-hidden
+                      ${isActive
+                        ? 'bg-wp-surface-bright border border-wp-primary/30 shadow-xl shadow-wp-primary/5'
+                        : 'bg-wp-surface-container-low hover:bg-wp-surface-container'
+                      }`}
+                  >
+                    {isActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-wp-primary" />}
 
-                  {/* Thumbnail */}
-                  <div className="relative w-24 aspect-video rounded-lg overflow-hidden flex-shrink-0">
-                    <img
-                      src={video.thumbnailUrl || `https://picsum.photos/seed/${video.id}/200/112`}
-                      alt={video.title}
-                      className="w-full h-full object-cover"
-                    />
-                    {isActive && (
-                      <div className="absolute inset-0 bg-wp-primary/20 flex items-center justify-center">
-                        <Play size={16} className="text-white fill-current" />
-                      </div>
-                    )}
-                  </div>
+                    {/* Thumbnail */}
+                    <div className="relative w-24 aspect-video rounded-lg overflow-hidden flex-shrink-0">
+                      <img
+                        src={video.thumbnailUrl || `https://picsum.photos/seed/${video.id}/200/112`}
+                        alt={video.title}
+                        className="w-full h-full object-cover"
+                      />
+                      {isActive && (
+                        <div className="absolute inset-0 bg-wp-primary/20 flex items-center justify-center">
+                          <Play size={16} className="text-white fill-current" />
+                        </div>
+                      )}
+                    </div>
 
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <span className={`text-[10px] font-bold tracking-[0.15em] uppercase mb-1 block
-                      ${isActive || isCompleted ? 'text-wp-primary' : 'text-wp-on-surface-variant/40'}`}>
-                      Video {num}
-                    </span>
-                    <h3 className="text-base font-bold text-wp-on-surface line-clamp-1">{video.title}</h3>
-                    <p className="text-xs text-wp-on-surface-variant mt-0.5">{video.creator.fullName}</p>
-                  </div>
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <span className={`text-[10px] font-bold tracking-[0.15em] uppercase mb-1 block
+                        ${isActive || isCompleted ? 'text-wp-primary' : 'text-wp-on-surface-variant/40'}`}>
+                        Video {num}
+                      </span>
+                      <h3 className="text-base font-bold text-wp-on-surface line-clamp-1">{video.title}</h3>
+                      <p className="text-xs text-wp-on-surface-variant mt-0.5">{video.creator?.fullName}</p>
+                    </div>
 
-                  {/* Duration + status */}
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-sm font-medium text-wp-on-surface-variant flex items-center gap-1">
-                      <VideoIcon size={12} />{formatDuration(dur)}
-                    </p>
-                    {isCompleted && (
-                      <p className="text-[10px] text-wp-primary font-bold mt-0.5">DONE</p>
-                    )}
-                    {isActive && (
-                      <p className="text-[10px] text-wp-on-surface-variant/40 font-bold uppercase mt-0.5">Playing</p>
-                    )}
-                  </div>
-                </Link>
-              );
-            })}
+                    {/* Duration + status */}
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-sm font-medium text-wp-on-surface-variant flex items-center gap-1">
+                        <VideoIcon size={12} />{formatDuration(dur)}
+                      </p>
+                      {isCompleted && (
+                        <p className="text-[10px] text-wp-primary font-bold mt-0.5">DONE</p>
+                      )}
+                      {isActive && (
+                        <p className="text-[10px] text-wp-on-surface-variant/40 font-bold uppercase mt-0.5">Playing</p>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })
+            )}
           </div>
         </div>
 

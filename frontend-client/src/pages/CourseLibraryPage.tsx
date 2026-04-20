@@ -1,13 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { SlidersHorizontal, Play } from 'lucide-react';
 import PlaylistCard from '../components/ui/PlaylistCard';
-import { playlists } from '../data/mockData';
+import { playlistApi } from '../api/playlistApi';
+import type { Playlist } from '../types';
 
 // Derive categories from playlists (future: from API)
 const ALL = 'All';
 
 export default function CourseLibraryPage() {
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState(ALL);
+
+  useEffect(() => {
+    playlistApi.getMyPlaylists()
+      .then(setPlaylists)
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
 
   const categories = [ALL, ...Array.from(new Set(playlists.map((p) => (p.isPrivate ? 'Private' : 'Shared'))))];
 
@@ -15,6 +25,10 @@ export default function CourseLibraryPage() {
     if (activeCategory === ALL) return true;
     return activeCategory === 'Private' ? p.isPrivate : !p.isPrivate;
   });
+
+  if (loading) {
+    return <div className="p-10 text-center animate-pulse text-wp-on-surface-variant">Loading library...</div>;
+  }
 
   return (
     <div className="space-y-12 animate-slide-up">

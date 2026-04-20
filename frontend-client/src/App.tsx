@@ -1,30 +1,53 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import MainLayout from './components/layout/MainLayout';
-import AuthLayout from './layouts/AuthLayout';
-import LoginPage from './pages/LoginPage';
-import DashboardPage from './pages/DashboardPage';
-import WatchVideoPage from './pages/WatchVideoPage';
-import SettingsPage from './pages/SettingsPage';
-import CourseLibraryPage from './pages/CourseLibraryPage';
-import CourseDetailPage from './pages/CourseDetailPage';
-import CoursePlayerPage from './pages/CoursePlayerPage';
-import HistoryPage from './pages/HistoryPage';
-import MyCoursesPage from './pages/MyCoursesPage';
-import ProfilePage from './pages/ProfilePage';
-import LikedVideosPage from './pages/LikedVideosPage';
-import UploadVideoPage from './pages/UploadVideoPage';
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import MainLayout from "./components/layout/MainLayout";
+import AuthLayout from "./layouts/AuthLayout";
+import LoginPage from "./pages/LoginPage";
+import DashboardPage from "./pages/DashboardPage";
+import WatchVideoPage from "./pages/WatchVideoPage";
+import SettingsPage from "./pages/SettingsPage";
+import CourseLibraryPage from "./pages/CourseLibraryPage";
+import CourseDetailPage from "./pages/CourseDetailPage";
+import CoursePlayerPage from "./pages/CoursePlayerPage";
+import HistoryPage from "./pages/HistoryPage";
+import MyCoursesPage from "./pages/MyCoursesPage";
+import ProfilePage from "./pages/ProfilePage";
+import LikedVideosPage from "./pages/LikedVideosPage";
+import UploadVideoPage from "./pages/UploadVideoPage";
+import { useAuthStore } from "./store/useAuthStore";
+
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
+}
+
+function RedirectIfAuthenticated({ children }: { children: React.ReactNode }) {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  return isAuthenticated ? <Navigate to="/" replace /> : <>{children}</>;
+}
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         {/* Auth routes — no sidebar/navbar */}
-        <Route element={<AuthLayout />}>
+        <Route
+          element={
+            <RedirectIfAuthenticated>
+              <AuthLayout />
+            </RedirectIfAuthenticated>
+          }
+        >
           <Route path="/login" element={<LoginPage />} />
         </Route>
 
         {/* App routes — with sidebar + navbar */}
-        <Route element={<MainLayout />}>
+        <Route
+          element={
+            <RequireAuth>
+              <MainLayout />
+            </RequireAuth>
+          }
+        >
           <Route path="/" element={<DashboardPage />} />
           <Route path="/watch/:id" element={<WatchVideoPage />} />
           <Route path="/settings" element={<SettingsPage />} />
@@ -39,7 +62,7 @@ function App() {
         </Route>
 
         {/* Catch-all */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
   );

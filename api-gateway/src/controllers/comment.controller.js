@@ -11,7 +11,7 @@ const addComment = async (req, res, next) => {
       videoId,
       userId,
       content,
-      parentId
+      parentId,
     );
 
     res.status(201).json({
@@ -27,11 +27,35 @@ const addComment = async (req, res, next) => {
 const getComments = async (req, res, next) => {
   try {
     const { id: videoId } = req.params;
-    const comments = await commentService.getComments(videoId);
+    const userId = req.user?.id || null;
+    const comments = await commentService.getComments(videoId, userId);
 
     res.status(200).json({
       message: "Comments retrieved successfully.",
       comments,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// [POST] /api/videos/:id/comments/:commentId/like — Toggle like/unlike cho comment
+const toggleCommentLike = async (req, res, next) => {
+  try {
+    const { id: videoId, commentId } = req.params;
+    const userId = req.user.id;
+
+    const result = await commentService.toggleCommentLike(
+      videoId,
+      commentId,
+      userId,
+    );
+
+    res.status(200).json({
+      message: result.liked ? "Comment liked." : "Comment unliked.",
+      liked: result.liked,
+      likes: result.likes,
+      commentId,
     });
   } catch (error) {
     next(error);
@@ -55,4 +79,4 @@ const toggleLike = async (req, res, next) => {
   }
 };
 
-module.exports = { addComment, getComments, toggleLike };
+module.exports = { addComment, getComments, toggleLike, toggleCommentLike };

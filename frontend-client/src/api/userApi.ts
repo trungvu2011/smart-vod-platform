@@ -1,7 +1,22 @@
 import api from './axios';
-import type { HistoryItem, Video } from '../types';
+import type { HistoryItem, Video, User } from '../types';
 
 export const userApi = {
+  getMe: async () => {
+    const res = await api.get<{ user: User }>('/users/me');
+    return res.data.user;
+  },
+
+  updateMe: async (data: { fullName?: string; title?: string; department?: string; avatarUrl?: string }) => {
+    const res = await api.put<{ user: User }>('/users/me', data);
+    return res.data.user;
+  },
+
+  changePassword: async (oldPassword?: string, newPassword?: string) => {
+    const res = await api.post('/auth/change-password', { oldPassword, newPassword });
+    return res.data;
+  },
+
   getHistory: async () => {
     const res = await api.get<{ history: HistoryItem[] }>('/users/history');
     return res.data.history;
@@ -13,13 +28,24 @@ export const userApi = {
   },
 
   getLikedVideos: async () => {
-    const res = await api.get<{ videos: Video[] }>('/users/liked-videos');
-    return res.data.videos;
+    // FIX: Match backend response `{ likedVideos: [{ likedAt, video }] }`
+    const res = await api.get<{ likedVideos: { likedAt: string; video: Video }[] }>('/users/liked-videos');
+    return res.data.likedVideos;
   },
   
   getNotifications: async () => {
     const res = await api.get('/users/notifications');
     return res.data.notifications;
+  },
+
+  markNotificationRead: async (id: string) => {
+    const res = await api.patch(`/users/notifications/${id}/read`);
+    return res.data;
+  },
+
+  markAllNotificationsRead: async () => {
+    const res = await api.post('/users/notifications/read-all');
+    return res.data;
   },
   
   getActivities: async () => {
@@ -30,5 +56,10 @@ export const userApi = {
   getSessions: async () => {
     const res = await api.get('/users/sessions');
     return res.data.sessions;
+  },
+
+  revokeSession: async (sessionId: string) => {
+    const res = await api.delete(`/users/sessions/${sessionId}`);
+    return res.data;
   }
 };

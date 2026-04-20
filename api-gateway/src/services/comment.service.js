@@ -51,29 +51,47 @@ const addComment = async (videoId, userId, content, parentId = null) => {
  * Lấy danh sách bình luận theo cấu trúc phân cấp (hierarchical).
  * Trả về top-level comments kèm theo mảng replies lồng nhau.
  */
-const getComments = async (videoId) => {
+const getComments = async (videoId, currentUserId = null) => {
+  const include = {
+    user: {
+      select: { id: true, fullName: true, avatarUrl: true },
+    },
+    _count: {
+      select: { likes: true, replies: true },
+    },
+  };
+
+  if (currentUserId) {
+    include.likes = {
+      where: { userId: currentUserId },
+      select: { userId: true },
+    };
+  }
+
   // Lấy tất cả comments của video
   const allComments = await prisma.comment.findMany({
     where: { videoId },
     orderBy: { createdAt: "asc" },
-    include: {
-      user: {
-        select: { id: true, fullName: true, avatarUrl: true },
-      },
-    },
+    include,
   });
+
+  const normalizedComments = allComments.map((comment) => ({
+    ...comment,
+    likes: comment._count?.likes || 0,
+    liked: currentUserId ? (comment.likes?.length || 0) > 0 : false,
+  }));
 
   // Xây dựng cây phân cấp (hierarchical tree)
   const commentMap = {};
   const rootComments = [];
 
   // Bước 1: Tạo map từ id → comment (kèm mảng replies rỗng)
-  allComments.forEach((comment) => {
+  normalizedComments.forEach((comment) => {
     commentMap[comment.id] = { ...comment, replies: [] };
   });
 
   // Bước 2: Gắn replies vào parent tương ứng
-  allComments.forEach((comment) => {
+  normalizedComments.forEach((comment) => {
     if (comment.parentId && commentMap[comment.parentId]) {
       commentMap[comment.parentId].replies.push(commentMap[comment.id]);
     } else {
@@ -82,6 +100,39 @@ const getComments = async (videoId) => {
   });
 
   return rootComments;
+};
+
+/**
+ * Toggle like cho comment.
+ * Trả về trạng thái liked hiện tại và tổng số lượt like mới.
+ */
+const toggleCommentLike = async (videoId, commentId, userId) => {
+  const comment = await prisma.comment.findUnique({ where: { id: commentId } });
+  if (!comment || comment.videoId !== videoId) {
+    const err = new Error("Không tìm thấy bình luận!");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const existing = await prisma.commentLike.findUnique({
+    where: { userId_commentId: { userId, commentId } },
+  });
+
+  let liked;
+  if (existing) {
+    await prisma.commentLike.delete({
+      where: { userId_commentId: { userId, commentId } },
+    });
+    liked = false;
+  } else {
+    await prisma.commentLike.create({
+      data: { userId, commentId },
+    });
+    liked = true;
+  }
+
+  const likes = await prisma.commentLike.count({ where: { commentId } });
+  return { liked, likes };
 };
 
 /**
@@ -121,4 +172,4 @@ const toggleLike = async (videoId, userId) => {
   }
 };
 
-module.exports = { addComment, getComments, toggleLike };
+module.exports = { addComment, getComments, toggleLike, toggleCommentLike };

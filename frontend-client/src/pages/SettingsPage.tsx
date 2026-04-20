@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   User, Palette, Bell, Shield, Database,
   Moon, Sun, Monitor, LogOut, Trash2, Download
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
-import { activeSessions } from '../data/mockData';
+import { userApi } from '../api/userApi';
 
 type SettingsTab = 'account' | 'appearance' | 'notifications' | 'security' | 'data';
 
@@ -18,7 +18,7 @@ const tabs: { key: SettingsTab; label: string; icon: React.ReactNode }[] = [
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('account');
-  const { user } = useAuthStore();
+  const { user, setUser } = useAuthStore();
   const [darkMode, setDarkMode] = useState(true);
   const [notifications, setNotifications] = useState({
     training: true,
@@ -27,6 +27,66 @@ export default function SettingsPage() {
   });
   const [twoFactor, setTwoFactor] = useState(false);
   const [offlineQuality, setOfflineQuality] = useState('720p');
+
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
+
+  // Form states
+  const [fullName, setFullName] = useState(user?.fullName || '');
+  const [updatingProfile, setUpdatingProfile] = useState(false);
+
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [updatingPassword, setUpdatingPassword] = useState(false);
+
+  // Load sessions when entering security tab
+  useEffect(() => {
+    if (activeTab === 'security') {
+      setLoadingSessions(true);
+      userApi.getSessions()
+        .then(setSessions)
+        .catch(console.error)
+        .finally(() => setLoadingSessions(false));
+    }
+  }, [activeTab]);
+
+  const handleRevokeSession = async (id: string) => {
+    try {
+      await userApi.revokeSession(id);
+      setSessions(prev => prev.filter(s => s.id !== id));
+    } catch (err) {
+      console.error('Failed to revoke session', err);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    setUpdatingProfile(true);
+    try {
+      const updatedUser = await userApi.updateMe({ fullName });
+      setUser(updatedUser);
+      alert('Profile updated!');
+    } catch (err) {
+      console.error('Failed to update profile', err);
+    } finally {
+      setUpdatingProfile(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!oldPassword || !newPassword) return;
+    setUpdatingPassword(true);
+    try {
+      await userApi.changePassword(oldPassword, newPassword);
+      setOldPassword('');
+      setNewPassword('');
+      alert('Password updated!');
+    } catch (err) {
+      console.error('Failed to update password', err);
+      alert('Failed to update password. Check your old password.');
+    } finally {
+      setUpdatingPassword(false);
+    }
+  };
 
   return (
     <div className="animate-slide-up">
@@ -76,7 +136,8 @@ export default function SettingsPage() {
                 <div>
                   <label className="block text-xs font-medium text-wp-on-surface-variant mb-1.5">Full Name</label>
                   <input
-                    defaultValue={user?.fullName}
+                    value={fullName}
+                    onChange={e => setFullName(e.target.value)}
                     className="w-full px-4 py-3 bg-wp-surface-lowest rounded-wp text-sm text-wp-on-surface
                       focus:outline-none focus:bg-wp-surface-container-highest focus:shadow-wp-glow transition-all"
                   />
@@ -85,30 +146,51 @@ export default function SettingsPage() {
                   <label className="block text-xs font-medium text-wp-on-surface-variant mb-1.5">Email</label>
                   <input
                     defaultValue={user?.email}
-                    className="w-full px-4 py-3 bg-wp-surface-lowest rounded-wp text-sm text-wp-on-surface
-                      focus:outline-none focus:bg-wp-surface-container-highest focus:shadow-wp-glow transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-wp-on-surface-variant mb-1.5">Role</label>
-                  <input
-                    defaultValue={user?.title}
-                    className="w-full px-4 py-3 bg-wp-surface-lowest rounded-wp text-sm text-wp-on-surface
-                      focus:outline-none focus:bg-wp-surface-container-highest focus:shadow-wp-glow transition-all"
                     disabled
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-wp-on-surface-variant mb-1.5">Department</label>
-                  <input
-                    defaultValue={user?.department}
-                    className="w-full px-4 py-3 bg-wp-surface-lowest rounded-wp text-sm text-wp-on-surface
-                      focus:outline-none focus:bg-wp-surface-container-highest focus:shadow-wp-glow transition-all"
-                    disabled
+                    className="w-full px-4 py-3 bg-wp-surface-lowest opacity-50 rounded-wp text-sm text-wp-on-surface cursor-not-allowed"
                   />
                 </div>
               </div>
-              <button className="btn-primary text-sm">Save Changes</button>
+              <button 
+                onClick={handleSaveProfile} 
+                disabled={updatingProfile}
+                className="btn-primary text-sm disabled:opacity-50"
+              >
+                {updatingProfile ? 'Saving...' : 'Save Changes'}
+              </button>
+
+              <div className="mt-8">
+                <h3 className="text-lg font-semibold text-wp-on-surface mb-4">Change Password</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 bg-wp-surface-container rounded-wp-xl p-6">
+                  <div>
+                    <label className="block text-xs font-medium text-wp-on-surface-variant mb-1.5">Old Password</label>
+                    <input
+                      type="password"
+                      value={oldPassword}
+                      onChange={e => setOldPassword(e.target.value)}
+                      className="w-full px-4 py-3 bg-wp-surface-lowest rounded-wp text-sm text-wp-on-surface
+                        focus:outline-none focus:bg-wp-surface-container-highest focus:shadow-wp-glow transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-wp-on-surface-variant mb-1.5">New Password</label>
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      className="w-full px-4 py-3 bg-wp-surface-lowest rounded-wp text-sm text-wp-on-surface
+                        focus:outline-none focus:bg-wp-surface-container-highest focus:shadow-wp-glow transition-all"
+                    />
+                  </div>
+                </div>
+                <button 
+                  onClick={handleChangePassword} 
+                  disabled={updatingPassword || !oldPassword || !newPassword}
+                  className="btn-secondary text-sm mt-4 disabled:opacity-50"
+                >
+                  {updatingPassword ? 'Updating...' : 'Update Password'}
+                </button>
+              </div>
             </section>
           )}
 
@@ -218,28 +300,39 @@ export default function SettingsPage() {
               {/* Active Sessions */}
               <div>
                 <h3 className="text-sm font-semibold text-wp-on-surface mb-3">Active Sessions</h3>
-                <div className="space-y-3">
-                  {activeSessions.map((session) => (
-                    <div key={session.id} className="flex items-center justify-between p-4 bg-wp-surface-container rounded-wp-lg">
-                      <div>
-                        <p className="text-sm font-medium text-wp-on-surface">{session.device}</p>
-                        <p className="text-xs text-wp-on-surface-variant">{session.location}</p>
-                      </div>
-                      <div className="text-right">
-                        {session.isCurrent ? (
-                          <span className="text-xs font-medium text-green-400">Current Session</span>
-                        ) : (
+                {loadingSessions ? (
+                  <p className="text-sm text-wp-on-surface-variant animate-pulse">Loading sessions...</p>
+                ) : (
+                  <div className="space-y-3">
+                    {sessions.length === 0 ? (
+                      <p className="text-sm text-wp-on-surface-variant">No active sessions found.</p>
+                    ) : (
+                      sessions.map((session) => (
+                        <div key={session.id} className="flex items-center justify-between p-4 bg-wp-surface-container rounded-wp-lg">
                           <div>
-                            <p className="text-xs text-wp-outline">{session.lastActive}</p>
-                            <button className="text-xs text-wp-error hover:underline mt-0.5 flex items-center gap-1 ml-auto">
-                              <LogOut size={12} /> Revoke
-                            </button>
+                            <p className="text-sm font-medium text-wp-on-surface">{session.device}</p>
+                            <p className="text-xs text-wp-on-surface-variant">{session.location}</p>
                           </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                          <div className="text-right">
+                            {session.isCurrent ? (
+                              <span className="text-xs font-medium text-green-400">Current Session</span>
+                            ) : (
+                              <div>
+                                <p className="text-xs text-wp-outline">{new Date(session.lastActive).toLocaleString()}</p>
+                                <button 
+                                  onClick={() => handleRevokeSession(session.id)}
+                                  className="text-xs text-wp-error hover:underline mt-0.5 flex items-center gap-1 ml-auto"
+                                >
+                                  <LogOut size={12} /> Revoke
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
             </section>
           )}

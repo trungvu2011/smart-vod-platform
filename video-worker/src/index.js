@@ -30,7 +30,7 @@ worker.on("completed", async (job, returnvalue) => {
   // Cập nhật video sang READY và upsert metadata theo schema DB mới.
   try {
     await prisma.$transaction([
-      prisma.video.update({
+      prisma.video.updateMany({
         where: { id: job.data.videoId },
         data: { status: "READY" },
       }),
@@ -64,7 +64,7 @@ worker.on("failed", async (job, err) => {
 
   // Cập nhật trạng thái video trong database thành FAILED
   try {
-    await prisma.video.update({
+    await prisma.video.updateMany({
       where: { id: job.data.videoId },
       data: { status: "FAILED" },
     });

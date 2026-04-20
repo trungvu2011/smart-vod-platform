@@ -1,14 +1,30 @@
+import { useState, useEffect } from 'react';
 import {
    BookOpen, Award, TrendingUp, CheckCircle,
   Medal, Play, Mail,
   Building2, MapPin, Pencil, ArrowRight, Lock, Users,
   Video
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import { useAuthStore } from '../store/useAuthStore';
+import { playlistApi } from '../api/playlistApi';
+import type { Playlist } from '../types';
 
 export default function ProfilePage() {
   const { user } = useAuthStore();
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      playlistApi.getMyPlaylists()
+        .then(setPlaylists)
+        .catch(console.error)
+        .finally(() => setLoading(false));
+    }
+  }, [user]);
+
   if (!user) return null;
 
   return (
@@ -43,22 +59,22 @@ export default function ProfilePage() {
               </div>
               <div className="flex items-center gap-2 px-3 py-1.5 bg-wp-surface-container-high rounded-full">
                 <Building2 size={14} className="text-wp-tertiary" />
-                <span className="text-xs font-semibold text-wp-on-surface-variant">{user.department}</span>
+                <span className="text-xs font-semibold text-wp-on-surface-variant">{user.department || 'N/A'}</span>
               </div>
               <div className="flex items-center gap-2 px-3 py-1.5 bg-wp-surface-container-high rounded-full">
                 <MapPin size={14} className="text-wp-tertiary" />
-                <span className="text-xs font-semibold text-wp-on-surface-variant">London HQ</span>
+                <span className="text-xs font-semibold text-wp-on-surface-variant">Remote</span>
               </div>
             </div>
           </div>
         </div>
 
-        <button className="bg-wp-surface-container-high hover:bg-wp-surface-bright text-wp-on-surface
+        <Link to="/settings" className="bg-wp-surface-container-high hover:bg-wp-surface-bright text-wp-on-surface
           px-8 py-3 rounded-wp-lg font-bold transition-all flex items-center gap-2 whitespace-nowrap
           active:scale-95">
           <Pencil size={16} />
           Edit Profile
-        </button>
+        </Link>
       </section>
 
       {/* ── Stats Grid (Bento Style) ── */}
@@ -66,21 +82,21 @@ export default function ProfilePage() {
         {[
           {
             label: 'Videos Viewed',
-            value: user.videosViewed.toLocaleString(),
+            value: (user.videosViewed ?? 0).toLocaleString(),
             trend: '+12% this month',
             trendIcon: <TrendingUp size={14} />,
             watermark: <Play size={80} />,
           },
           {
             label: 'Playlists Created',
-            value: '0', 
+            value: loading ? '-' : playlists.length.toLocaleString(), 
             trend: 'Keep it going',
             trendIcon: <CheckCircle size={14} />,
             watermark: <BookOpen size={80} />,
           },
           {
             label: 'Certifications',
-            value: user.certifications.toString().padStart(2, '0'),
+            value: (user.certifications ?? 0).toString().padStart(2, '0'),
             trend: '3 pending review',
             trendIcon: <Medal size={14} />,
             watermark: <Award size={80} />,
@@ -120,58 +136,39 @@ export default function ProfilePage() {
               </h2>
               <p className="text-wp-on-surface-variant/60">Your private and shared collections</p>
             </div>
-            <button className="text-wp-primary hover:text-wp-primary-fixed transition-colors text-sm font-bold
+            <Link to="/playlists" className="text-wp-primary hover:text-wp-primary-fixed transition-colors text-sm font-bold
               flex items-center gap-1">
               View All <ArrowRight size={14} />
-            </button>
+            </Link>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Playlist Card 1 */}
-            <div className="group relative aspect-video rounded-3xl overflow-hidden cursor-pointer">
-              <img
-                src={'https://picsum.photos/seed/strategy24/800/450'}
-                alt="Strategy 2024 Kickoff"
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-wp-surface/90 via-wp-surface/40 to-transparent" />
-              <div className="absolute inset-0 p-6 flex flex-col justify-end">
-                <div className="glass rounded-2xl p-4 ghost-border">
-                  <h3 className="text-xl font-bold text-wp-on-surface">Strategy 2024 Kickoff</h3>
-                  <div className="flex items-center gap-4 mt-2">
-                    <span className="text-xs text-wp-on-surface-variant flex items-center gap-1">
-                      <Video size={13} /> 12 Videos
-                    </span>
-                    <span className="text-xs text-wp-on-surface-variant flex items-center gap-1">
-                      <Users size={13} /> Shared with 4
-                    </span>
+            {loading ? (
+              <p className="text-wp-on-surface-variant text-sm col-span-full">Loading playlists...</p>
+            ) : playlists.length === 0 ? (
+              <p className="text-wp-on-surface-variant text-sm col-span-full">You haven't created any learning paths yet.</p>
+            ) : (
+              playlists.slice(0, 3).map((pl) => (
+                <Link key={pl.id} to={`/playlists/${pl.id}`} className="group relative aspect-video rounded-3xl overflow-hidden cursor-pointer block">
+                  <div className="absolute inset-0 bg-gradient-to-br from-indigo-800 via-purple-800 to-wp-surface" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-wp-surface/90 via-wp-surface/40 to-transparent z-10" />
+                  <div className="absolute inset-0 p-6 flex flex-col justify-end z-20">
+                    <div className="glass rounded-2xl p-4 ghost-border">
+                      <h3 className="text-xl font-bold text-wp-on-surface line-clamp-1">{pl.name}</h3>
+                      <div className="flex items-center gap-4 mt-2">
+                        <span className="text-xs text-wp-on-surface-variant flex items-center gap-1">
+                          <Video size={13} /> {pl._count?.items ?? 0} Videos
+                        </span>
+                        <span className="text-xs text-wp-on-surface-variant flex items-center gap-1">
+                          {pl.isPrivate ? <Lock size={13} /> : <Users size={13} />}
+                          {pl.isPrivate ? 'Private' : 'Shared'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Playlist Card 2 */}
-            <div className="group relative aspect-video rounded-3xl overflow-hidden cursor-pointer">
-              <img
-                src={'https://picsum.photos/seed/compliance/800/450'}
-                alt="Compliance Essentials"
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-wp-surface/90 via-wp-surface/40 to-transparent" />
-              <div className="absolute inset-0 p-6 flex flex-col justify-end">
-                <div className="glass rounded-2xl p-4 ghost-border">
-                  <h3 className="text-xl font-bold text-wp-on-surface">Compliance Essentials</h3>
-                  <div className="flex items-center gap-4 mt-2">
-                    <span className="text-xs text-wp-on-surface-variant flex items-center gap-1">
-                      <Video size={13} /> 8 Videos
-                    </span>
-                    <span className="text-xs text-wp-on-surface-variant flex items-center gap-1">
-                      <Lock size={13} /> Private
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
+                </Link>
+              ))
+            )}
           </div>
         </div>
       </div>
