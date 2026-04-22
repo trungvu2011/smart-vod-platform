@@ -15,6 +15,11 @@ import LikedVideosPage from "./pages/LikedVideosPage";
 import UploadVideoPage from "./pages/UploadVideoPage";
 import MyVideosPage from "./pages/MyVideosPage";
 import SearchPage from "./pages/SearchPage";
+import AdminLayout from "./components/layout/AdminLayout";
+import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
+import AdminUsersPage from "./pages/admin/AdminUsersPage";
+import AdminModerationPage from "./pages/admin/AdminModerationPage";
+import AdminAnalyticsPage from "./pages/admin/AdminAnalyticsPage";
 import { useAuthStore } from "./store/useAuthStore";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -63,6 +68,22 @@ function App() {
           <Route path="/upload" element={<UploadVideoPage />} />
           <Route path="/my-videos" element={<MyVideosPage />} />
           <Route path="/search" element={<SearchPage />} />
+        </Route>
+
+        {/* Admin routes */}
+        <Route
+          path="/admin"
+          element={
+            <RequireAuth>
+              <AdminLayout />
+            </RequireAuth>
+          }
+        >
+          <Route index element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="dashboard" element={<AdminDashboardPage />} />
+          <Route path="users" element={<AdminUsersPage />} />
+          <Route path="moderation" element={<AdminModerationPage />} />
+          <Route path="analytics" element={<AdminAnalyticsPage />} />
         </Route>
 
         {/* Catch-all */}

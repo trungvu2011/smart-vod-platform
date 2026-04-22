@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { Video as VideoIcon, Plus, Eye, Clock, AlertCircle } from "lucide-react";
+import { Video as VideoIcon, Plus, AlertCircle } from "lucide-react";
 import VideoCard from "../components/ui/VideoCard";
 import { userApi } from "../api/userApi";
 import { API_BASE_URL } from "../api/axios";

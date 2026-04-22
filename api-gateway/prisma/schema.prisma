@@ -13,6 +13,11 @@ datasource db {
 // =========================================
 // ENUMS
 // =========================================
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
 enum Role {
   USER
   ADMIN
@@ -42,6 +47,7 @@ model User {
   email            String         @unique @db.VarChar(150)
   passwordHash     String         @db.VarChar(255) @map("password_hash")
   role             Role           @default(USER)
+  status           UserStatus     @default(ACTIVE)
   avatarUrl        String?        @map("avatar_url")
   title            String?        @db.VarChar(100)
   department       String?        @db.VarChar(100)

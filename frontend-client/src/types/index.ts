@@ -8,6 +8,7 @@ export interface User {
   email: string;
   avatarUrl?: string;
   role: "USER" | "ADMIN";
+  status: "ACTIVE" | "SUSPENDED";
   title?: string;
   department?: string;
   // Client-side computed / extra fields from API

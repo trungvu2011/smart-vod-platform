@@ -7,11 +7,11 @@ import {
 import PlaylistCard from '../components/ui/PlaylistCard';
 import CreatePlaylistModal from '../components/ui/CreatePlaylistModal';
 import { playlistApi } from '../api/playlistApi';
-import { useAuthStore } from '../store/useAuthStore';
+
 import type { Playlist } from '../types';
 
 export default function MyCoursesPage() {
-  const currentUser = useAuthStore((s) => s.user);
+
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
