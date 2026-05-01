@@ -16,7 +16,7 @@ interface NavItem {
 
 const discoveryItems: NavItem[] = [
   { to: '/', icon: <Home size={20} />, label: 'Home' },
-  { to: '/courses', icon: <GraduationCap size={20} />, label: 'Course Library' },
+  { to: '/playlists', icon: <GraduationCap size={20} />, label: 'Course Library' },
 ];
 
 const personalItems: NavItem[] = [

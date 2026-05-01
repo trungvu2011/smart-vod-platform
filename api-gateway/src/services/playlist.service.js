@@ -1,4 +1,5 @@
 const prisma = require("../config/prisma");
+const sseManager = require("./sse");
 
 // ─── Existing ────────────────────────────────────────────────────────────────
 
@@ -80,9 +81,30 @@ const addVideoToPlaylist = async (userId, playlistId, videoId) => {
   });
   const nextOrder = (maxOrderResult._max.order || 0) + 1;
 
-  return await prisma.playlistItem.create({
+  const item = await prisma.playlistItem.create({
     data: { playlistId, videoId, order: nextOrder },
   });
+
+  try {
+    const video = await prisma.video.findUnique({ where: { id: videoId } });
+    if (video && video.creatorId !== userId) {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      const notification = await prisma.notification.create({
+        data: {
+          userId: video.creatorId,
+          type: "course_update",
+          title: "Added to Playlist",
+          message: `${user ? user.fullName : "Someone"} added your video "${video.title}" to their playlist "${playlist.name}".`,
+          actionUrl: `/watch/${video.id}`,
+        },
+      });
+      sseManager.sendToUser(video.creatorId, "new_notification", notification);
+    }
+  } catch (err) {
+    console.error("[Notification Error]", err);
+  }
+
+  return item;
 };
 
 const removeVideoFromPlaylist = async (userId, playlistId, videoId) => {

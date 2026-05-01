@@ -121,10 +121,11 @@ export interface TranscriptEntry {
 
 export interface Notification {
   id: string;
-  type: "training" | "townhall" | "course_update" | "system";
+  type: string; // "training" | "townhall" | "course_update" | "system"
   title: string;
   message: string;
   read: boolean;
+  actionUrl?: string;
   createdAt: string;
 }
 

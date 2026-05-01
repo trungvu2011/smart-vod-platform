@@ -1,4 +1,5 @@
 const prisma = require("../config/prisma");
+const sseManager = require("./sse");
 
 /**
  * Thêm bình luận — hỗ trợ parentId cho comment lồng nhau (reply).
@@ -19,8 +20,9 @@ const addComment = async (videoId, userId, content, parentId = null) => {
   }
 
   // Nếu có parentId, kiểm tra parent comment tồn tại
+  let parentComment = null;
   if (parentId) {
-    const parentComment = await prisma.comment.findUnique({
+    parentComment = await prisma.comment.findUnique({
       where: { id: parentId },
     });
     if (!parentComment) {
@@ -43,6 +45,41 @@ const addComment = async (videoId, userId, content, parentId = null) => {
       },
     },
   });
+
+  // --- TRIGGER NOTIFICATION ---
+  try {
+    let targetUserId = null;
+    let title = "";
+    let message = "";
+
+    if (parentId && parentComment && parentComment.userId !== userId) {
+      // Reply to a comment
+      targetUserId = parentComment.userId;
+      title = "New Reply";
+      message = `${comment.user.fullName} replied to your comment on "${video.title}".`;
+    } else if (!parentId && video.creatorId !== userId) {
+      // New comment on a video
+      targetUserId = video.creatorId;
+      title = "New Comment";
+      message = `${comment.user.fullName} commented on your video "${video.title}".`;
+    }
+
+    if (targetUserId) {
+      const notification = await prisma.notification.create({
+        data: {
+          userId: targetUserId,
+          type: "course_update",
+          title,
+          message,
+          actionUrl: `/watch/${video.id}`,
+        },
+      });
+      // Push via SSE
+      sseManager.sendToUser(targetUserId, "new_notification", notification);
+    }
+  } catch (err) {
+    console.error("[Notification Error]", err);
+  }
 
   return comment;
 };
@@ -128,6 +165,28 @@ const toggleCommentLike = async (videoId, commentId, userId) => {
     await prisma.commentLike.create({
       data: { userId, commentId },
     });
+    
+    // --- TRIGGER NOTIFICATION ---
+    if (comment.userId !== userId) {
+      try {
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (user) {
+          const notification = await prisma.notification.create({
+            data: {
+              userId: comment.userId,
+              type: "course_update",
+              title: "Comment Liked",
+              message: `${user.fullName} liked your comment.`,
+              actionUrl: `/watch/${videoId}`,
+            },
+          });
+          sseManager.sendToUser(comment.userId, "new_notification", notification);
+        }
+      } catch (err) {
+        console.error("[Notification Error]", err);
+      }
+    }
+
     liked = true;
   }
 
@@ -168,6 +227,28 @@ const toggleLike = async (videoId, userId) => {
     await prisma.like.create({
       data: { userId, videoId },
     });
+
+    // --- TRIGGER NOTIFICATION ---
+    if (video.creatorId !== userId) {
+      try {
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (user) {
+          const notification = await prisma.notification.create({
+            data: {
+              userId: video.creatorId,
+              type: "course_update",
+              title: "New Like",
+              message: `${user.fullName} liked your video "${video.title}".`,
+              actionUrl: `/watch/${video.id}`,
+            },
+          });
+          sseManager.sendToUser(video.creatorId, "new_notification", notification);
+        }
+      } catch (err) {
+        console.error("[Notification Error]", err);
+      }
+    }
+
     return { liked: true };
   }
 };

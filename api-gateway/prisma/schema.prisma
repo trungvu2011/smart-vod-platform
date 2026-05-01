@@ -200,6 +200,7 @@ model Notification {
   type        String   @db.VarChar(50) // "training", "townhall", etc.
   title       String   @db.VarChar(255)
   message     String   @db.Text
+  actionUrl   String?  @map("action_url")
   read        Boolean  @default(false)
   createdAt   DateTime @default(now()) @map("created_at")
 

@@ -1,5 +1,5 @@
 import api from './axios';
-import type { HistoryItem, Video, User } from '../types';
+import type { HistoryItem, Video, User, Notification } from '../types';
 
 export const userApi = {
   getMe: async () => {
@@ -38,9 +38,11 @@ export const userApi = {
     return res.data.likedVideos;
   },
   
-  getNotifications: async () => {
-    const res = await api.get('/users/notifications');
-    return res.data.notifications;
+  getNotifications: async (cursor?: string, limit = 10) => {
+    const params: Record<string, string> = { limit: String(limit) };
+    if (cursor) params.cursor = cursor;
+    const res = await api.get<{ notifications: Notification[]; nextCursor: string | null }>('/users/notifications', { params });
+    return res.data;
   },
 
   markNotificationRead: async (id: string) => {

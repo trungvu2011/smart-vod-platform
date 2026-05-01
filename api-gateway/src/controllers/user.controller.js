@@ -1,4 +1,6 @@
 const userService = require("../services/user.service");
+const sseManager = require("../services/sse");
+const jwt = require("jsonwebtoken");
 
 // ─── Existing ────────────────────────────────────────────────────────────────
 
@@ -36,11 +38,68 @@ const getLikedVideos = async (req, res, next) => {
 // [GET] /api/users/notifications
 const getNotifications = async (req, res, next) => {
   try {
-    const notifications = await userService.getNotifications(req.user.id);
-    res.status(200).json({ message: "Notifications retrieved successfully.", notifications });
+    const { cursor, limit } = req.query;
+    const parsedLimit = limit ? Math.min(parseInt(limit, 10), 50) : 10;
+    const result = await userService.getNotifications(
+      req.user.id,
+      cursor || null,
+      parsedLimit
+    );
+    res.status(200).json({
+      message: "Notifications retrieved successfully.",
+      notifications: result.notifications,
+      nextCursor: result.nextCursor,
+    });
   } catch (error) {
     next(error);
   }
+};
+
+// [GET] /api/users/notifications/stream — SSE endpoint
+const streamNotifications = (req, res) => {
+  // Auth via query param (EventSource không hỗ trợ custom headers)
+  const token = req.query.token;
+  if (!token) {
+    return res.status(401).json({ message: "Missing token for SSE." });
+  }
+
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
+  } catch (err) {
+    return res.status(403).json({ message: "Invalid or expired token." });
+  }
+
+  const userId = decoded.id;
+
+  // Set SSE headers
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive",
+    "X-Accel-Buffering": "no", // Disable nginx buffering
+  });
+
+  // Send initial connection confirmation
+  res.write(`event: connected\ndata: ${JSON.stringify({ userId })}\n\n`);
+
+  // Register connection
+  sseManager.addClient(userId, res);
+
+  // Heartbeat every 30s to keep connection alive
+  const heartbeat = setInterval(() => {
+    try {
+      res.write(": heartbeat\n\n");
+    } catch (err) {
+      clearInterval(heartbeat);
+    }
+  }, 30000);
+
+  // Cleanup on disconnect
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    sseManager.removeClient(userId, res);
+  });
 };
 
 // [GET] /api/users/activities
@@ -136,6 +195,7 @@ module.exports = {
   upsertHistory,
   getLikedVideos,
   getNotifications,
+  streamNotifications,
   getActivities,
   getSessions,
   getMe,

@@ -5,6 +5,7 @@ const {
   upsertHistory,
   getLikedVideos,
   getNotifications,
+  streamNotifications,
   getActivities,
   getSessions,
   getMe,
@@ -16,7 +17,12 @@ const {
 } = require("../controllers/user.controller");
 const { verifyToken } = require("../middlewares/auth.middleware");
 
-// Tất cả route user đều cần đăng nhập
+// ── SSE Stream (auth via query param, TRƯỚC verifyToken) ─────────────────────
+// EventSource không hỗ trợ custom headers nên không dùng được verifyToken middleware.
+// Controller tự xác thực token từ query param.
+router.get("/notifications/stream", streamNotifications);
+
+// Tất cả route user còn lại đều cần đăng nhập
 router.use(verifyToken);
 
 // ── Profile ──────────────────────────────────────────────────────────────────

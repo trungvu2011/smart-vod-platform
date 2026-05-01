@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import MainLayout from "./components/layout/MainLayout";
 import AuthLayout from "./layouts/AuthLayout";
@@ -21,6 +22,7 @@ import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import AdminModerationPage from "./pages/admin/AdminModerationPage";
 import AdminAnalyticsPage from "./pages/admin/AdminAnalyticsPage";
 import { useAuthStore } from "./store/useAuthStore";
+import { useNotificationStore } from "./store/useNotificationStore";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -33,6 +35,29 @@ function RedirectIfAuthenticated({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
+  const initAuth = useAuthStore((s) => s.initAuth);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const { fetchNotifications, connectSSE, disconnectSSE } = useNotificationStore();
+
+  useEffect(() => {
+    initAuth();
+  }, [initAuth]);
+
+  // Connect SSE & fetch notifications when authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchNotifications();
+      connectSSE();
+    } else {
+      disconnectSSE();
+    }
+
+    return () => {
+      disconnectSSE();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
+
   return (
     <BrowserRouter>
       <Routes>

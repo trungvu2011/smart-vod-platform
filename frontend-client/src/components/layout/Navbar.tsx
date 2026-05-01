@@ -2,6 +2,7 @@ import { Search, Bell, ChevronDown } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import NotificationDropdown from '../ui/NotificationDropdown';
 
 export default function Navbar() {
   const { user, logout } = useAuthStore();
@@ -41,10 +42,7 @@ export default function Navbar() {
       {/* Right section */}
       <div className="flex items-center gap-4 ml-6">
         {/* Notifications */}
-        <button className="relative p-2 rounded-lg hover:bg-wp-surface-container-high transition-colors">
-          <Bell size={20} className="text-wp-on-surface-variant" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-wp-primary-fixed rounded-full" />
-        </button>
+        <NotificationDropdown />
 
         {/* User menu */}
         <div className="relative">

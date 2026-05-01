@@ -1,10 +1,7 @@
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const prisma = require("../config/prisma");
-
-/**
- * ADMIN tạo tài khoản nhân sự mới.
- */
+const sseManager = require("./sse");
 const createUser = async ({ fullName, email, role }) => {
   if (!fullName || !email) {
     const err = new Error("Vui lòng cung cấp fullName và email!");
@@ -80,6 +77,22 @@ const updateUserStatus = async (id, status) => {
     data: { status },
     select: { id: true, status: true, email: true, fullName: true }
   });
+
+  try {
+    const notification = await prisma.notification.create({
+      data: {
+        userId: id,
+        type: "system",
+        title: status === 'ACTIVE' ? "Account Activated" : "Account Suspended",
+        message: status === 'ACTIVE' ? "Your account has been reactivated." : "Your account has been suspended by an admin.",
+        actionUrl: `/profile`,
+      },
+    });
+    sseManager.sendToUser(id, "new_notification", notification);
+  } catch (err) {
+    console.error("[Notification Error]", err);
+  }
+
   return updated;
 };
 
@@ -122,6 +135,22 @@ const approveVideo = async (videoId) => {
     where: { id: videoId },
     data: { status: 'READY' }
   });
+
+  try {
+    const notification = await prisma.notification.create({
+      data: {
+        userId: updated.creatorId,
+        type: "system",
+        title: "Video Approved",
+        message: `Your video "${updated.title}" has been approved and is now live.`,
+        actionUrl: `/watch/${updated.id}`,
+      },
+    });
+    sseManager.sendToUser(updated.creatorId, "new_notification", notification);
+  } catch (err) {
+    console.error("[Notification Error]", err);
+  }
+
   return updated;
 };
 
@@ -134,6 +163,22 @@ const rejectVideo = async (videoId, reason) => {
     where: { id: videoId },
     data: { status: 'BANNED' }
   });
+
+  try {
+    const notification = await prisma.notification.create({
+      data: {
+        userId: updated.creatorId,
+        type: "system",
+        title: "Video Rejected",
+        message: `Your video "${updated.title}" has been rejected. Reason: ${reason || "Violates community guidelines."}`,
+        actionUrl: `/profile`,
+      },
+    });
+    sseManager.sendToUser(updated.creatorId, "new_notification", notification);
+  } catch (err) {
+    console.error("[Notification Error]", err);
+  }
+
   return updated;
 };
 

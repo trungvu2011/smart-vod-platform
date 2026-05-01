@@ -91,11 +91,25 @@ const getLikedVideos = async (userId) => {
   }));
 };
 
-const getNotifications = async (userId) => {
-  return await prisma.notification.findMany({
+const getNotifications = async (userId, cursor = null, limit = 10) => {
+  const queryOptions = {
     where: { userId },
     orderBy: { createdAt: "desc" },
-  });
+    take: limit + 1, // Lấy thêm 1 để biết có trang tiếp không
+  };
+
+  if (cursor) {
+    queryOptions.cursor = { id: cursor };
+    queryOptions.skip = 1; // Bỏ qua record cursor hiện tại
+  }
+
+  const results = await prisma.notification.findMany(queryOptions);
+
+  const hasMore = results.length > limit;
+  const notifications = hasMore ? results.slice(0, limit) : results;
+  const nextCursor = hasMore ? notifications[notifications.length - 1].id : null;
+
+  return { notifications, nextCursor };
 };
 
 const getActivities = async (userId) => {

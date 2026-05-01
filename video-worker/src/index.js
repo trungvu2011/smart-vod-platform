@@ -33,8 +33,8 @@ worker.on("completed", async (job, returnvalue) => {
     const subtitleUrl = returnvalue.transcriptUrl ? returnvalue.transcriptUrl : null;
     const duration = returnvalue.duration || 0;
 
-    await prisma.$transaction([
-      prisma.video.updateMany({
+    const [updatedVideo] = await prisma.$transaction([
+      prisma.video.update({
         where: { id: job.data.videoId },
         data: { status: "READY" },
       }),
@@ -58,6 +58,27 @@ worker.on("completed", async (job, returnvalue) => {
     console.log(
       `[WORKER] Đã cập nhật READY và metadata cho video ${job.data.videoId}.`,
     );
+
+    // Create Notification
+    if (updatedVideo && updatedVideo.creatorId) {
+      const notification = await prisma.notification.create({
+        data: {
+          userId: updatedVideo.creatorId,
+          type: "system",
+          title: "Video Processing Complete",
+          message: `Your video "${updatedVideo.title}" is ready to be watched.`,
+          actionUrl: `/watch/${updatedVideo.id}`,
+        },
+      });
+
+      // Publish to Redis for SSE real-time push
+      redisConnection.publish("notification_channel", JSON.stringify({
+        userId: updatedVideo.creatorId,
+        eventName: "new_notification",
+        payload: notification
+      }));
+    }
+
   } catch (error) {
     console.error("[ERROR] Lỗi cập nhật trạng thái video:", error);
   }
@@ -69,10 +90,29 @@ worker.on("failed", async (job, err) => {
 
   // Cập nhật trạng thái video trong database thành FAILED
   try {
-    await prisma.video.updateMany({
+    const updatedVideo = await prisma.video.update({
       where: { id: job.data.videoId },
       data: { status: "FAILED" },
     });
+
+    if (updatedVideo && updatedVideo.creatorId) {
+      const notification = await prisma.notification.create({
+        data: {
+          userId: updatedVideo.creatorId,
+          type: "system",
+          title: "Video Processing Failed",
+          message: `Your video "${updatedVideo.title}" failed to process. Please try uploading again.`,
+          actionUrl: `/profile`,
+        },
+      });
+
+      // Publish to Redis for SSE real-time push
+      redisConnection.publish("notification_channel", JSON.stringify({
+        userId: updatedVideo.creatorId,
+        eventName: "new_notification",
+        payload: notification
+      }));
+    }
   } catch (dbErr) {
     console.error("[ERROR] Lỗi cập nhật trạng thái FAILED:", dbErr);
   }

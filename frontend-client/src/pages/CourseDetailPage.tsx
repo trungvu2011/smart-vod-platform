@@ -5,9 +5,10 @@ import {
   FileText, BarChart2, CheckCircle2, Lock, ArrowLeft, Plus
 } from 'lucide-react';
 import { playlistApi } from '../api/playlistApi';
+import { userApi } from '../api/userApi';
 import SelectVideosModal from '../components/ui/SelectVideosModal';
 import { useAuthStore } from '../store/useAuthStore';
-import type { Playlist, Video } from '../types';
+import type { Playlist, Video, HistoryItem } from '../types';
 
 function formatDuration(seconds: number): string {
   if (!seconds) return "0m";
@@ -21,20 +22,30 @@ export default function CourseDetailPage() {
   const navigate = useNavigate();
   const currentUser = useAuthStore((s) => s.user);
   const [playlist, setPlaylist] = useState<Playlist | null>(null);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isManageOpen, setIsManageOpen] = useState(false);
 
-  const fetchPlaylist = () => {
+  const fetchData = async () => {
     if (id) {
-      playlistApi.getPlaylistById(id)
-        .then(setPlaylist)
-        .catch(console.error)
-        .finally(() => setLoading(false));
+      setLoading(true);
+      try {
+        const [playlistData, historyData] = await Promise.all([
+          playlistApi.getPlaylistById(id),
+          userApi.getHistory()
+        ]);
+        setPlaylist(playlistData);
+        setHistory(historyData);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchPlaylist();
+    fetchData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -56,10 +67,21 @@ export default function CourseDetailPage() {
 
   const totalDuration = videos.reduce((acc, v) => acc + (v.metadata?.duration ?? 0), 0);
 
-  // Mock progress setup for UX showcasing
-  // In a real app we derive this tracking from WatchHistory
-  const completedCount = Math.min(1, videos.length); 
+  // Calculate actual progress from WatchHistory
+  let completedCount = 0;
+  for (const v of videos) {
+    const h = history.find(item => item.videoId === v.id);
+    const dur = v.metadata?.duration ?? 0;
+    const isCompleted = h && dur > 0 ? (h.lastSecond / dur) >= 0.95 : false;
+    if (isCompleted) {
+      completedCount++;
+    } else {
+      break;
+    }
+  }
+  
   const progress = videos.length > 0 ? Math.round((completedCount / videos.length) * 100) : 0;
+  const activeVideoIndex = completedCount < videos.length ? completedCount : 0;
 
   return (
     <div className="animate-slide-up -my-6 -mx-6 lg:-mx-8 lg:-mt-8">
@@ -119,7 +141,7 @@ export default function CourseDetailPage() {
 
             <div className="flex flex-wrap gap-4">
               <Link 
-                to={videos.length > 0 ? `/playlists/${playlist.id}/play?v=${videos[0].id}` : '#'}
+                to={videos.length > 0 ? `/playlists/${playlist.id}/play?v=${videos[activeVideoIndex].id}` : '#'}
                 className="flex items-center justify-center bg-wp-gradient px-10 py-4 rounded-xl font-bold text-wp-on-primary shadow-[0_10px_40px_-10px_rgba(0,82,255,0.4)] hover:scale-105 transition-transform"
               >
                 {progress > 0 ? 'Continue Learning' : 'Start Path'}
@@ -293,7 +315,7 @@ export default function CourseDetailPage() {
         <SelectVideosModal
           playlist={playlist}
           onClose={() => setIsManageOpen(false)}
-          onUpdated={() => fetchPlaylist()}
+          onUpdated={() => fetchData()}
         />
       )}
     </div>
