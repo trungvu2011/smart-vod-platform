@@ -77,6 +77,7 @@ export default function CoursePlayerPage() {
             <VideoPlayer
               src={videoSrc}
               poster={activeVideo.thumbnailUrl || ''}
+              subtitleUrl={activeVideo.metadata?.subtitleUrl}
             />
           </div>
 

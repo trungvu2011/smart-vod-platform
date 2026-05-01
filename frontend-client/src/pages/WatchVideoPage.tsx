@@ -90,6 +90,7 @@ export default function WatchVideoPage() {
           <VideoPlayer 
             src={video.metadata?.hlsMasterUrl || 'https://raw.githubusercontent.com/muxinc/mux-player/main/packages/mux-video/test/fixtures/video.mp4'} 
             poster={video.thumbnailUrl || ''} 
+            subtitleUrl={video.metadata?.subtitleUrl}
           />
 
           {/* Video info */}

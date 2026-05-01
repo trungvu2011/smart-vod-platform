@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import Hls from "hls.js";
 import {
   Play,
@@ -12,12 +12,14 @@ import {
   Settings as SettingsIcon,
   ChevronRight,
   ChevronLeft,
+  Subtitles,
 } from "lucide-react";
 
 interface VideoPlayerProps {
   src: string;
   poster?: string;
   autoPlay?: boolean;
+  subtitleUrl?: string;
   onTimeUpdate?: (currentTime: number, duration: number) => void;
   onEnded?: () => void;
 }
@@ -34,6 +36,7 @@ export default function VideoPlayer({
   src,
   poster,
   autoPlay = false,
+  subtitleUrl,
   onTimeUpdate,
   onEnded,
 }: VideoPlayerProps) {
@@ -62,6 +65,8 @@ export default function VideoPlayer({
   );
   const [settingsView, setSettingsView] = useState<SettingsView>("root");
   const [seekFeedback, setSeekFeedback] = useState<SeekFeedback>(null);
+  const [subtitlesEnabled, setSubtitlesEnabled] = useState(false);
+  const [currentCue, setCurrentCue] = useState<string | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
@@ -127,6 +132,46 @@ export default function VideoPlayer({
       }
     };
   }, [src, autoPlay]);
+
+  // Sync subtitle track mode with state
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !subtitleUrl) return;
+
+    const trySetTrack = () => {
+      const tracks = video.textTracks;
+      if (tracks.length > 0) {
+        const track = tracks[0];
+        track.mode = subtitlesEnabled ? "hidden" : "disabled";
+
+        if (subtitlesEnabled) {
+          track.mode = "hidden"; // We render our own overlay
+          const handleCueChange = () => {
+            if (track.activeCues && track.activeCues.length > 0) {
+              setCurrentCue((track.activeCues[0] as VTTCue).text);
+            } else {
+              setCurrentCue(null);
+            }
+          };
+          track.addEventListener("cuechange", handleCueChange);
+          // Trigger immediately in case cues are already active
+          handleCueChange();
+          return () => track.removeEventListener("cuechange", handleCueChange);
+        } else {
+          track.mode = "disabled";
+          setCurrentCue(null);
+        }
+      }
+    };
+
+    // TextTracks may load asynchronously, retry briefly
+    const cleanup = trySetTrack();
+    if (!cleanup && subtitlesEnabled) {
+      const timer = setTimeout(trySetTrack, 500);
+      return () => clearTimeout(timer);
+    }
+    return cleanup;
+  }, [subtitlesEnabled, subtitleUrl]);
 
   // Close settings popover when clicking outside
   useEffect(() => {
@@ -323,7 +368,29 @@ export default function VideoPlayer({
           setIsPlaying(false);
           onEnded?.();
         }}
-      />
+        crossOrigin="anonymous"
+      >
+        {subtitleUrl && (
+          <track
+            kind="subtitles"
+            src={subtitleUrl}
+            srcLang="vi"
+            label="Vietnamese"
+            default
+          />
+        )}
+      </video>
+
+      {/* Subtitle overlay */}
+      {subtitlesEnabled && currentCue && (
+        <div className={`absolute left-0 right-0 flex justify-center pointer-events-none z-10 px-8 transition-all duration-300 ${
+          showControls ? 'bottom-20' : 'bottom-4'
+        }`}>
+          <span className="bg-black/80 backdrop-blur-sm text-white text-sm md:text-base font-medium px-4 py-2 rounded-lg leading-relaxed text-center max-w-[85%] shadow-lg">
+            {currentCue}
+          </span>
+        </div>
+      )}
 
       {/* Seek feedback overlay */}
       <div className="pointer-events-none absolute inset-0">
@@ -470,6 +537,24 @@ export default function VideoPlayer({
             </div>
 
             <div className="relative flex items-center gap-1" ref={settingsRef}>
+              {/* CC / Subtitle toggle — only show when subtitleUrl exists */}
+              {subtitleUrl && (
+                <button
+                  onClick={() => setSubtitlesEnabled((v) => !v)}
+                  className={`p-1.5 rounded-lg transition-colors relative ${
+                    subtitlesEnabled
+                      ? "bg-white/20 text-white"
+                      : "hover:bg-white/10 text-white/60"
+                  }`}
+                  title={subtitlesEnabled ? "Turn off subtitles" : "Turn on subtitles"}
+                >
+                  <Subtitles size={18} />
+                  {subtitlesEnabled && (
+                    <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-3.5 h-0.5 bg-white rounded-full" />
+                  )}
+                </button>
+              )}
+
               <button
                 onClick={() => {
                   setShowSettings((v) => {
