@@ -67,6 +67,22 @@ const getVideoById = async (req, res, next) => {
   }
 };
 
+/**
+ * Ghi nhận lượt xem video (Rate limited by IP)
+ */
+const recordView = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    // req.ip works in Express; optionally check x-forwarded-for if behind proxy
+    const ipAddress = req.headers["x-forwarded-for"] || req.socket.remoteAddress || req.ip || "unknown";
+    
+    const result = await videoService.recordView(id, ipAddress);
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 // [PUT] /api/videos/:id — Cập nhật title/description (Creator or Admin)
 const updateVideo = async (req, res, next) => {
   try {
@@ -177,6 +193,7 @@ module.exports = {
   uploadVideo, 
   listVideos, 
   getVideoById, 
+  recordView,
   updateVideo, 
   deleteVideo, 
   getAiSummary,

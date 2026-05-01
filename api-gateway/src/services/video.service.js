@@ -1,6 +1,7 @@
 const prisma = require("../config/prisma");
 const minioClient = require("../config/minio");
 const videoQueue = require("../config/queue");
+const redisClient = require("../config/redis");
 const path = require("path");
 const crypto = require("crypto");
 
@@ -148,16 +149,38 @@ const getVideoById = async (videoId) => {
     throw err;
   }
 
-  // Tăng lượt xem
+  return video;
+};
+
+/**
+ * Ghi nhận 1 lượt xem với cơ chế chống Spam IP bằng Redis.
+ * Mỗi IP chỉ được tính 1 view cho 1 video trong vòng 15 phút.
+ */
+const recordView = async (videoId, ipAddress) => {
+  if (!videoId) {
+    const err = new Error("Video ID is required");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const redisKey = `view:${videoId}:${ipAddress}`;
+  
+  // Kiểm tra xem IP này đã xem video này trong vòng 15 phút qua chưa
+  const existingView = await redisClient.get(redisKey);
+  if (existingView) {
+    return { success: false, message: "View already counted recently for this IP" };
+  }
+
+  // Cập nhật lượt xem vào database
   await prisma.video.update({
     where: { id: videoId },
     data: { viewCount: { increment: 1 } },
   });
 
-  return {
-    ...video,
-    viewCount: video.viewCount + 1,
-  };
+  // Đặt key chặn spam trong 900 giây (15 phút)
+  await redisClient.setex(redisKey, 900, "1");
+
+  return { success: true, message: "View recorded successfully" };
 };
 
 /**
@@ -277,6 +300,7 @@ module.exports = {
   uploadVideo,
   listVideos,
   getVideoById,
+  recordView,
   updateVideo,
   deleteVideo,
   getAiSummary,

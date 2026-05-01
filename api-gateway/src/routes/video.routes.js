@@ -9,6 +9,7 @@ const {
   deleteVideo,
   getAiSummary,
   streamVideoProgress,
+  recordView,
 } = require("../controllers/video.controller");
 const {
   addComment,
@@ -29,6 +30,9 @@ router.get("/:id", optionalAuth, getVideoById);
 
 // Public: Get AI Summary
 router.get("/:id/ai-summary", optionalAuth, getAiSummary);
+
+// Public: Record a view (with rate limit checking inside controller)
+router.post("/:id/view", recordView);
 
 // Public (hoặc optionalAuth): Lắng nghe tiến trình xử lý Video (SSE)
 router.get("/:id/progress", streamVideoProgress);

@@ -91,6 +91,11 @@ export default function WatchVideoPage() {
             src={video.metadata?.hlsMasterUrl || 'https://raw.githubusercontent.com/muxinc/mux-player/main/packages/mux-video/test/fixtures/video.mp4'} 
             poster={video.thumbnailUrl || ''} 
             subtitleUrl={video.metadata?.subtitleUrl}
+            onViewThresholdReached={() => {
+              if (video.id) {
+                videoApi.recordView(video.id).catch(console.error);
+              }
+            }}
           />
 
           {/* Video info */}

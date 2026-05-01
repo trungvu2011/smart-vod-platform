@@ -36,5 +36,10 @@ export const videoApi = {
   getAiSummary: async (videoId: string) => {
     const res = await api.get(`/videos/${videoId}/ai-summary`);
     return res.data.summary;
+  },
+
+  recordView: async (videoId: string) => {
+    const res = await api.post(`/videos/${videoId}/view`);
+    return res.data;
   }
 };

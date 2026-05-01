@@ -8,6 +8,7 @@ import { sampleTranscript } from '../data/mockData';
 import { playlistApi } from '../api/playlistApi';
 import { userApi } from '../api/userApi';
 import type { Video, Playlist } from '../types';
+import { videoApi } from '../api/videoApi';
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -78,6 +79,11 @@ export default function CoursePlayerPage() {
               src={videoSrc}
               poster={activeVideo.thumbnailUrl || ''}
               subtitleUrl={activeVideo.metadata?.subtitleUrl}
+              onViewThresholdReached={() => {
+                if (activeVideo.id) {
+                  videoApi.recordView(activeVideo.id).catch(console.error);
+                }
+              }}
             />
           </div>
 

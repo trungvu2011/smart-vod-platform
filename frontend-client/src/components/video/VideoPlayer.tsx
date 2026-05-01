@@ -22,6 +22,7 @@ interface VideoPlayerProps {
   subtitleUrl?: string;
   onTimeUpdate?: (currentTime: number, duration: number) => void;
   onEnded?: () => void;
+  onViewThresholdReached?: () => void;
 }
 
 type QualityOption = {
@@ -39,6 +40,7 @@ export default function VideoPlayer({
   subtitleUrl,
   onTimeUpdate,
   onEnded,
+  onViewThresholdReached,
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -67,6 +69,12 @@ export default function VideoPlayer({
   const [seekFeedback, setSeekFeedback] = useState<SeekFeedback>(null);
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(false);
   const [currentCue, setCurrentCue] = useState<string | null>(null);
+
+  // --- View Tracking ---
+  const cumulativePlayTime = useRef(0);
+  const lastUpdateTimestamp = useRef(Date.now());
+  const viewThresholdReached = useRef(false);
+
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
@@ -235,22 +243,41 @@ export default function VideoPlayer({
   }, [isPlaying, isHovering]);
 
   const togglePlay = () => {
-    const video = videoRef.current;
-    if (!video) return;
-    if (video.paused) {
-      video.play();
-      setIsPlaying(true);
-    } else {
-      video.pause();
-      setIsPlaying(false);
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        lastUpdateTimestamp.current = Date.now();
+        videoRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
     }
   };
 
   const handleTimeUpdate = () => {
-    const video = videoRef.current;
-    if (!video) return;
-    setCurrentTime(video.currentTime);
-    onTimeUpdate?.(video.currentTime, video.duration);
+    if (videoRef.current && isPlaying) {
+      setCurrentTime(videoRef.current.currentTime);
+      onTimeUpdate?.(videoRef.current.currentTime, duration);
+
+      // --- Track View Time ---
+      const now = Date.now();
+      const delta = now - lastUpdateTimestamp.current;
+      // Tránh cộng dồn sai khi tab bị ngủ đông (delta quá lớn > 2s)
+      if (delta > 0 && delta < 2000) {
+        cumulativePlayTime.current += delta;
+      }
+      lastUpdateTimestamp.current = now;
+
+      // Calculate dynamic threshold: 30 seconds OR 80% of duration for short videos
+      const threshold = duration > 0 ? Math.min(30000, duration * 1000 * 0.8) : 30000;
+
+      if (cumulativePlayTime.current >= threshold && !viewThresholdReached.current && threshold > 0) {
+        viewThresholdReached.current = true;
+        onViewThresholdReached?.();
+      }
+    } else {
+      lastUpdateTimestamp.current = Date.now();
+    }
   };
 
   const handleLoadedMetadata = () => {
