@@ -4,8 +4,8 @@ const adminService = require("../services/admin.service");
 
 const createUser = async (req, res, next) => {
   try {
-    const { fullName, email, role } = req.body;
-    const result = await adminService.createUser({ fullName, email, role });
+    const { fullName, email, role, department, title } = req.body;
+    const result = await adminService.createUser({ fullName, email, role, department, title });
     res.status(201).json({
       message: "User created successfully.",
       user: result.user,
@@ -18,8 +18,16 @@ const createUser = async (req, res, next) => {
 
 const listUsers = async (req, res, next) => {
   try {
-    const users = await adminService.listUsers();
-    res.status(200).json({ users });
+    const { search, department, status, role, page, limit } = req.query;
+    const result = await adminService.listUsers({
+      search,
+      department,
+      status,
+      role,
+      page: page ? parseInt(page) : 1,
+      limit: limit ? parseInt(limit) : 20,
+    });
+    res.status(200).json(result);
   } catch (error) {
     next(error);
   }
@@ -47,12 +55,37 @@ const updateUserRole = async (req, res, next) => {
   }
 };
 
+const updateUser = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const user = await adminService.updateUser(id, req.body);
+    res.status(200).json({ message: "User updated.", user });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // --- CONTENT MODERATION ---
 
 const getModerationQueue = async (req, res, next) => {
   try {
-    const videos = await adminService.getModerationQueue();
+    const { status } = req.query;
+    const videos = await adminService.getModerationQueue(status || null);
     res.status(200).json({ videos });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getAllVideos = async (req, res, next) => {
+  try {
+    const { status, page, limit } = req.query;
+    const result = await adminService.getAllVideos({
+      status,
+      page: page ? parseInt(page) : 1,
+      limit: limit ? parseInt(limit) : 20,
+    });
+    res.status(200).json(result);
   } catch (error) {
     next(error);
   }
@@ -79,6 +112,32 @@ const rejectVideo = async (req, res, next) => {
   }
 };
 
+const bulkApproveVideos = async (req, res, next) => {
+  try {
+    const { videoIds } = req.body;
+    if (!videoIds || !Array.isArray(videoIds)) {
+      return res.status(400).json({ message: "videoIds array is required." });
+    }
+    const results = await adminService.bulkApproveVideos(videoIds);
+    res.status(200).json({ message: "Bulk approve completed.", results });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const bulkRejectVideos = async (req, res, next) => {
+  try {
+    const { videoIds, reason } = req.body;
+    if (!videoIds || !Array.isArray(videoIds)) {
+      return res.status(400).json({ message: "videoIds array is required." });
+    }
+    const results = await adminService.bulkRejectVideos(videoIds, reason);
+    res.status(200).json({ message: "Bulk reject completed.", results });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // --- SYSTEM ANALYTICS ---
 
 const getDashboardMetrics = async (req, res, next) => {
@@ -99,14 +158,30 @@ const getAnalyticsMetrics = async (req, res, next) => {
   }
 };
 
+const exportUsersCsv = async (req, res, next) => {
+  try {
+    const csv = await adminService.exportUsersCsv();
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=users_export.csv');
+    res.status(200).send(csv);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createUser,
   listUsers,
   updateUserStatus,
   updateUserRole,
+  updateUser,
   getModerationQueue,
+  getAllVideos,
   approveVideo,
   rejectVideo,
+  bulkApproveVideos,
+  bulkRejectVideos,
   getDashboardMetrics,
   getAnalyticsMetrics,
+  exportUsersCsv,
 };

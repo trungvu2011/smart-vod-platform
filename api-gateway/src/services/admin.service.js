@@ -2,7 +2,12 @@ const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const prisma = require("../config/prisma");
 const sseManager = require("./sse");
-const createUser = async ({ fullName, email, role }) => {
+const redisClient = require("../config/redis");
+const videoQueue = require("../config/queue");
+
+// ─── USER MANAGEMENT ──────────────────────────────────────────────────────────
+
+const createUser = async ({ fullName, email, role, department, title }) => {
   if (!fullName || !email) {
     const err = new Error("Vui lòng cung cấp fullName và email!");
     err.statusCode = 400;
@@ -25,7 +30,9 @@ const createUser = async ({ fullName, email, role }) => {
       fullName,
       email,
       passwordHash: hashedPassword,
-      role: role || "USER", 
+      role: role || "USER",
+      department: department || null,
+      title: title || null,
     },
   });
 
@@ -36,6 +43,8 @@ const createUser = async ({ fullName, email, role }) => {
       email: newUser.email,
       role: newUser.role,
       status: newUser.status,
+      department: newUser.department,
+      title: newUser.title,
       createdAt: newUser.createdAt,
     },
     defaultPassword,
@@ -43,24 +52,62 @@ const createUser = async ({ fullName, email, role }) => {
 };
 
 /**
- * Lấy danh sách tất cả nhân sự.
+ * Lấy danh sách user với search, filter, và pagination.
  */
-const listUsers = async () => {
-  const users = await prisma.user.findMany({
-    select: {
-      id: true,
-      fullName: true,
-      email: true,
-      role: true,
-      status: true,
-      department: true,
-      avatarUrl: true,
-      createdAt: true,
-    },
-    orderBy: { createdAt: "desc" },
-  });
+const listUsers = async ({ search, department, status, role, page = 1, limit = 20 } = {}) => {
+  const where = {};
 
-  return users;
+  if (search) {
+    where.OR = [
+      { fullName: { contains: search, mode: "insensitive" } },
+      { email: { contains: search, mode: "insensitive" } },
+    ];
+  }
+  if (department) {
+    where.department = department;
+  }
+  if (status) {
+    where.status = status;
+  }
+  if (role) {
+    where.role = role;
+  }
+
+  const skip = (page - 1) * limit;
+
+  const [users, total] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        role: true,
+        status: true,
+        department: true,
+        title: true,
+        avatarUrl: true,
+        createdAt: true,
+        _count: {
+          select: { videos: true, playlists: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: limit,
+    }),
+    prisma.user.count({ where }),
+  ]);
+
+  return {
+    users,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
 };
 
 /**
@@ -114,17 +161,85 @@ const updateUserRole = async (id, role) => {
 };
 
 /**
- * Lấy danh sách video đang chờ duyệt
+ * Cập nhật thông tin user (admin edit)
  */
-const getModerationQueue = async () => {
+const updateUser = async (id, data) => {
+  const { fullName, department, title, role } = data;
+  const updateData = {};
+  if (fullName !== undefined) updateData.fullName = fullName;
+  if (department !== undefined) updateData.department = department;
+  if (title !== undefined) updateData.title = title;
+  if (role !== undefined) {
+    if (!['USER', 'ADMIN'].includes(role)) {
+      const err = new Error("Role không hợp lệ!");
+      err.statusCode = 400;
+      throw err;
+    }
+    updateData.role = role;
+  }
+
+  const updated = await prisma.user.update({
+    where: { id },
+    data: updateData,
+    select: {
+      id: true, fullName: true, email: true, role: true,
+      status: true, department: true, title: true, avatarUrl: true, createdAt: true,
+    },
+  });
+  return updated;
+};
+
+// ─── CONTENT MODERATION ───────────────────────────────────────────────────────
+
+/**
+ * Lấy danh sách video cho moderation (hỗ trợ filter theo status)
+ */
+const getModerationQueue = async (statusFilter = null) => {
+  const where = {};
+  if (statusFilter) {
+    where.status = statusFilter;
+  } else {
+    where.status = { in: ['PENDING', 'PROCESSING'] };
+  }
+
   const videos = await prisma.video.findMany({
-    where: { status: { in: ['PENDING', 'PROCESSING'] } },
+    where,
     include: {
-      creator: { select: { fullName: true, email: true, avatarUrl: true } }
+      creator: { select: { fullName: true, email: true, avatarUrl: true } },
+      metadata: { select: { duration: true, hlsMasterUrl: true } },
     },
     orderBy: { createdAt: 'desc' }
   });
   return videos;
+};
+
+/**
+ * Lấy tất cả video (cho admin, mọi status)
+ */
+const getAllVideos = async ({ status, page = 1, limit = 20 } = {}) => {
+  const where = {};
+  if (status) where.status = status;
+
+  const skip = (page - 1) * limit;
+  const [videos, total] = await Promise.all([
+    prisma.video.findMany({
+      where,
+      include: {
+        creator: { select: { id: true, fullName: true, email: true, avatarUrl: true } },
+        metadata: { select: { duration: true, hlsMasterUrl: true } },
+        _count: { select: { likes: true, comments: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit,
+    }),
+    prisma.video.count({ where }),
+  ]);
+
+  return {
+    videos,
+    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+  };
 };
 
 /**
@@ -158,7 +273,6 @@ const approveVideo = async (videoId) => {
  * Từ chối video
  */
 const rejectVideo = async (videoId, reason) => {
-  // We can't save "reason" yet easily without a db schema change, so we just set status.
   const updated = await prisma.video.update({
     where: { id: videoId },
     data: { status: 'BANNED' }
@@ -183,48 +297,312 @@ const rejectVideo = async (videoId, reason) => {
 };
 
 /**
- * Mock data backend telemetry metrics
+ * Bulk approve nhiều video
  */
+const bulkApproveVideos = async (videoIds) => {
+  const results = [];
+  for (const id of videoIds) {
+    try {
+      const video = await approveVideo(id);
+      results.push({ id, success: true, video });
+    } catch (err) {
+      results.push({ id, success: false, error: err.message });
+    }
+  }
+  return results;
+};
+
+/**
+ * Bulk reject nhiều video
+ */
+const bulkRejectVideos = async (videoIds, reason) => {
+  const results = [];
+  for (const id of videoIds) {
+    try {
+      const video = await rejectVideo(id, reason);
+      results.push({ id, success: true, video });
+    } catch (err) {
+      results.push({ id, success: false, error: err.message });
+    }
+  }
+  return results;
+};
+
+// ─── DASHBOARD METRICS (REAL DATA) ───────────────────────────────────────────
+
 const getDashboardMetrics = async () => {
-  const usersCount = await prisma.user.count();
-  const activeCount = await prisma.user.count({ where: { status: 'ACTIVE' } });
-  const pendingVideosCount = await prisma.video.count({ where: { status: 'PENDING' } });
+  // Đếm users
+  const [totalUsers, activeUsers, suspendedUsers] = await Promise.all([
+    prisma.user.count(),
+    prisma.user.count({ where: { status: 'ACTIVE' } }),
+    prisma.user.count({ where: { status: 'SUSPENDED' } }),
+  ]);
+
+  // Đếm videos theo status
+  const [totalVideos, readyVideos, pendingVideos, processingVideos, failedVideos, bannedVideos] = await Promise.all([
+    prisma.video.count(),
+    prisma.video.count({ where: { status: 'READY' } }),
+    prisma.video.count({ where: { status: 'PENDING' } }),
+    prisma.video.count({ where: { status: 'PROCESSING' } }),
+    prisma.video.count({ where: { status: 'FAILED' } }),
+    prisma.video.count({ where: { status: 'BANNED' } }),
+  ]);
+
+  // Tổng views
+  const viewsAgg = await prisma.video.aggregate({ _sum: { viewCount: true } });
+  const totalViews = viewsAgg._sum.viewCount || 0;
+
+  // Tổng comments, likes, playlists
+  const [totalComments, totalLikes, totalPlaylists] = await Promise.all([
+    prisma.comment.count(),
+    prisma.like.count(),
+    prisma.playlist.count(),
+  ]);
+
+  // User growth - 7 ngày gần nhất
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const recentUsers = await prisma.user.findMany({
+    where: { createdAt: { gte: sevenDaysAgo } },
+    select: { createdAt: true },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  const userGrowth = buildDailyCountsArray(recentUsers, 'createdAt', 7);
+
+  // Video growth - 7 ngày gần nhất
+  const recentVideos = await prisma.video.findMany({
+    where: { createdAt: { gte: sevenDaysAgo } },
+    select: { createdAt: true },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  const videoGrowth = buildDailyCountsArray(recentVideos, 'createdAt', 7);
+
+  // Top 5 videos by views
+  const topVideos = await prisma.video.findMany({
+    where: { status: 'READY' },
+    orderBy: { viewCount: 'desc' },
+    take: 5,
+    select: {
+      id: true, title: true, viewCount: true, thumbnailUrl: true, createdAt: true,
+      creator: { select: { fullName: true, avatarUrl: true } },
+    },
+  });
+
+  // Top 5 creators by video count
+  const topCreators = await prisma.user.findMany({
+    orderBy: { videos: { _count: 'desc' } },
+    take: 5,
+    select: {
+      id: true, fullName: true, avatarUrl: true, department: true,
+      _count: { select: { videos: true } },
+    },
+  });
+
+  // 5 video mới nhất
+  const recentUploads = await prisma.video.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: 5,
+    include: {
+      creator: { select: { fullName: true, avatarUrl: true } },
+      metadata: { select: { duration: true } },
+    },
+  });
 
   return {
-    storageUsedTB: 74.2,
-    storageTotalTB: 100,
-    totalUsers: usersCount,
-    activeUsers: activeCount,
-    pendingApprovals: pendingVideosCount,
+    users: { total: totalUsers, active: activeUsers, suspended: suspendedUsers },
+    videos: {
+      total: totalVideos, ready: readyVideos, pending: pendingVideos,
+      processing: processingVideos, failed: failedVideos, banned: bannedVideos,
+    },
+    totalViews,
+    totalComments,
+    totalLikes,
+    totalPlaylists,
+    userGrowth,
+    videoGrowth,
+    topVideos,
+    topCreators,
+    recentUploads,
+  };
+};
+
+// ─── ANALYTICS METRICS (REAL DATA) ───────────────────────────────────────────
+
+const getAnalyticsMetrics = async () => {
+  // Video stats theo category
+  const videosByCategory = await prisma.video.groupBy({
+    by: ['category'],
+    _count: { id: true },
+    _sum: { viewCount: true },
+  });
+
+  // Video stats theo visibility
+  const videosByVisibility = await prisma.video.groupBy({
+    by: ['visibility'],
+    _count: { id: true },
+  });
+
+  // Views timeline - 7 ngày gần nhất (dựa trên WatchHistory)
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const recentWatches = await prisma.watchHistory.findMany({
+    where: { watchedAt: { gte: sevenDaysAgo } },
+    select: { watchedAt: true },
+    orderBy: { watchedAt: 'asc' },
+  });
+
+  const viewsTimeline = buildDailyCountsArray(recentWatches, 'watchedAt', 7);
+
+  // Transcoding jobs from BullMQ
+  let transcodingJobs = [];
+  try {
+    const [activeJobs, waitingJobs, completedJobs, failedJobs] = await Promise.all([
+      videoQueue.getJobs(['active'], 0, 10),
+      videoQueue.getJobs(['waiting'], 0, 10),
+      videoQueue.getJobs(['completed'], 0, 5),
+      videoQueue.getJobs(['failed'], 0, 5),
+    ]);
+
+    const mapJob = (job, statusOverride) => ({
+      id: job.id,
+      source: job.data?.originalFilename || 'Unknown',
+      videoId: job.data?.videoId || null,
+      status: statusOverride,
+      progress: typeof job.progress === 'number' ? job.progress : 0,
+      createdAt: job.timestamp ? new Date(job.timestamp).toISOString() : null,
+    });
+
+    transcodingJobs = [
+      ...activeJobs.map(j => mapJob(j, 'PROCESSING')),
+      ...waitingJobs.map(j => mapJob(j, 'WAITING')),
+      ...completedJobs.map(j => mapJob(j, 'COMPLETE')),
+      ...failedJobs.map(j => mapJob(j, 'FAILED')),
+    ];
+  } catch (err) {
+    console.error("[Queue Error]", err.message);
+  }
+
+  // System health
+  let systemHealth = {
+    database: 'UNKNOWN',
+    redis: 'UNKNOWN',
+    queue: 'UNKNOWN',
+  };
+
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    systemHealth.database = 'OPERATIONAL';
+  } catch {
+    systemHealth.database = 'DOWN';
+  }
+
+  try {
+    await redisClient.ping();
+    systemHealth.redis = 'OPERATIONAL';
+  } catch {
+    systemHealth.redis = 'DOWN';
+  }
+
+  try {
+    const queueCounts = await videoQueue.getJobCounts();
+    systemHealth.queue = 'OPERATIONAL';
+    systemHealth.queueCounts = queueCounts;
+  } catch {
+    systemHealth.queue = 'DOWN';
+  }
+
+  // Storage estimate from DB
+  const totalVideoCount = await prisma.video.count();
+  const readyVideoCount = await prisma.video.count({ where: { status: 'READY' } });
+
+  return {
+    videosByCategory: videosByCategory.map(v => ({
+      category: v.category || 'Uncategorized',
+      count: v._count.id,
+      totalViews: v._sum.viewCount || 0,
+    })),
+    videosByVisibility: videosByVisibility.map(v => ({
+      visibility: v.visibility,
+      count: v._count.id,
+    })),
+    viewsTimeline,
+    transcodingJobs,
+    systemHealth,
+    storageEstimate: {
+      totalVideos: totalVideoCount,
+      processedVideos: readyVideoCount,
+    },
   };
 };
 
 /**
- * Mock data for deep analytics
+ * Export users to CSV string
  */
-const getAnalyticsMetrics = async () => {
-  return {
-    transcodingJobs: [
-      { id: '#HLS-8821', source: 'Q4_Townhall_Final.mp4', status: 'PROCESSING', progress: 68, bitrate: '12.4 Mbps' },
-      { id: '#HLS-8820', source: 'Onboarding_Mod1.mov', status: 'COMPLETE', progress: 100, bitrate: '8.2 Mbps' },
-      { id: '#HLS-8819', source: 'CEO_Keynote_Master.mxf', status: 'RETYRING', progress: 0, bitrate: '24.0 Mbps' },
-    ],
-    whisperHealth: {
-      accuracy: 99.4,
-      latencyMs: 14,
-      languagesSupported: 42,
-    }
-  };
+const exportUsersCsv = async () => {
+  const users = await prisma.user.findMany({
+    select: {
+      id: true, fullName: true, email: true, role: true,
+      status: true, department: true, title: true, createdAt: true,
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  const headers = ['ID', 'Full Name', 'Email', 'Role', 'Status', 'Department', 'Title', 'Created At'];
+  const rows = users.map(u => [
+    u.id, u.fullName, u.email, u.role, u.status,
+    u.department || '', u.title || '', u.createdAt.toISOString(),
+  ]);
+
+  const csvLines = [
+    headers.join(','),
+    ...rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')),
+  ];
+
+  return csvLines.join('\n');
 };
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+
+/**
+ * Build an array of daily counts for the last N days.
+ * Returns [{ date: 'YYYY-MM-DD', count: N }, ...]
+ */
+function buildDailyCountsArray(records, dateField, days) {
+  const counts = {};
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    counts[key] = 0;
+  }
+
+  for (const record of records) {
+    const key = new Date(record[dateField]).toISOString().slice(0, 10);
+    if (counts[key] !== undefined) {
+      counts[key]++;
+    }
+  }
+
+  return Object.entries(counts).map(([date, count]) => ({ date, count }));
+}
 
 module.exports = {
   createUser,
   listUsers,
   updateUserStatus,
   updateUserRole,
+  updateUser,
   getModerationQueue,
+  getAllVideos,
   approveVideo,
   rejectVideo,
+  bulkApproveVideos,
+  bulkRejectVideos,
   getDashboardMetrics,
   getAnalyticsMetrics,
+  exportUsersCsv,
 };

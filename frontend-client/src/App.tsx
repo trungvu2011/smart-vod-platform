@@ -29,6 +29,20 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
+function RequireAdmin({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, user } = useAuthStore();
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!user) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-wp-surface">
+        <div className="w-12 h-12 border-4 border-wp-primary/30 border-t-wp-primary rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+  if (user.role !== 'ADMIN') return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
 function RedirectIfAuthenticated({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   return isAuthenticated ? <Navigate to="/" replace /> : <>{children}</>;
@@ -99,9 +113,9 @@ function App() {
         <Route
           path="/admin"
           element={
-            <RequireAuth>
+            <RequireAdmin>
               <AdminLayout />
-            </RequireAuth>
+            </RequireAdmin>
           }
         >
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
