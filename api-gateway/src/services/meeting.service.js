@@ -3,6 +3,7 @@ const {
   AccessToken,
   EncodedFileOutput,
   EncodedFileType,
+  EncodingOptionsPreset,
   EgressStatus,
   S3Upload,
 } = require("livekit-server-sdk");
@@ -186,10 +187,14 @@ const scheduleEgressFinalization = (egressId, delayMs = 5000, attemptsLeft = 6) 
 // =========================================
 // HELPER: Generate LiveKit Access Token
 // =========================================
+const buildParticipantIdentity = (userId) => `${userId}:${crypto.randomUUID().slice(0, 8)}`;
+
 const generateToken = async (userId, userName, roomName, isHost = false) => {
+  const participantIdentity = buildParticipantIdentity(userId);
   const at = new AccessToken(apiKey, apiSecret, {
-    identity: userId,
+    identity: participantIdentity,
     name: userName,
+    metadata: JSON.stringify({ userId }),
   });
   at.addGrant({
     room: roomName,
@@ -380,9 +385,16 @@ const startRecording = async (roomName, userId) => {
       },
     });
 
+    // Layout "speaker-dark": tự động hiển thị screen share lớn ở giữa khi có,
+    // và hiển thị grid participants khi không có share.
+    // Ghi lại toàn bộ giao diện phòng họp (bao gồm cả webcam + screen share).
     const egressInfo = await egressClient.startRoomCompositeEgress(
       roomName,
       { file: output },
+      {
+        layout: "speaker-dark",
+        encodingOptions: EncodingOptionsPreset.H264_1080P_30,
+      },
     );
 
     // Lưu egressId vào DB để track
@@ -429,12 +441,25 @@ const endRoom = async (roomName, userId) => {
     } catch (e) {
       console.warn("[LIVEKIT] Lỗi stop egress (có thể đã kết thúc):", e.message);
     }
-    // QUAN TRỌNG: KHÔNG xóa room ngay khi đang có egress!
-    // Egress cần thời gian để finalize file MP4 và upload lên MinIO.
-    // Sau khi hoàn tất, LiveKit sẽ gửi webhook "egress_ended" → handler sẽ tạo Video.
-    // Room sẽ được cleanup sau trong webhook handler.
+
+    // Kick tất cả participants ra khỏi phòng, nhưng GIỮ room sống cho egress finalize.
+    // Egress cần room tồn tại để upload file MP4 lên MinIO.
+    // Room sẽ được cleanup sau trong webhook handler (egress_ended).
+    try {
+      const participants = await roomService.listParticipants(roomName);
+      await Promise.all(
+        participants.map((p) =>
+          roomService.removeParticipant(roomName, p.identity).catch((e) =>
+            console.warn(`[LIVEKIT] Lỗi kick participant ${p.identity}:`, e.message)
+          )
+        )
+      );
+      console.log(`[LIVEKIT] Đã kick ${participants.length} participants khỏi phòng ${roomName}`);
+    } catch (e) {
+      console.warn("[LIVEKIT] Lỗi khi kick participants:", e.message);
+    }
   } else {
-    // Không có egress → an toàn để xóa room ngay
+    // Không có egress → xóa room (tự động kick tất cả)
     try {
       await roomService.deleteRoom(roomName);
     } catch (e) {

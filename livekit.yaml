@@ -1,11 +1,15 @@
 # LiveKit Server Configuration (Development)
 port: 7880
 rtc:
-  udp_port: 7881
-  tcp_port: 7882
+  tcp_port: 7881
+  udp_port: 7882
   use_external_ip: false
-redis:
-  address: redis:6379
+  node_ip: 127.0.0.1
+  enable_loopback_candidate: true
+  allow_tcp_fallback: true
+turn:
+  enabled: true
+  udp_port: 3478
 keys:
   devkey: supersecretlivekitkeythatisverylong32chars
 webhook:
@@ -13,4 +17,4 @@ webhook:
   urls:
     - "http://host.docker.internal:5000/api/meetings/webhook/livekit"
 logging:
-  level: info
+  level: warn
