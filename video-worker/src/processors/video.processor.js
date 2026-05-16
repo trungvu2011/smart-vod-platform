@@ -11,7 +11,7 @@ ffmpeg.setFfprobePath(ffprobeInstaller.path);
 
 const processVideo = async (job) => {
   // Lấy thông tin video cần xử lý từ job data
-  const { videoId, originalFilename } = job.data;
+  const { videoId, originalFilename, isMeetingRecording } = job.data;
   const bucketName = process.env.MINIO_BUCKET_NAME;
 
   console.log(`\n[WORKER] Bắt đầu xử lý video ID: ${videoId}`);
@@ -20,14 +20,20 @@ const processVideo = async (job) => {
   const tempDir = path.join(__dirname, "../../../temp", videoId);
   if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
 
-  const inputFilePath = path.join(tempDir, originalFilename);
+  const objectName = String(originalFilename || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!objectName || objectName.split("/").includes("..")) {
+    throw new Error(`Invalid MinIO object name: ${originalFilename}`);
+  }
+
+  const inputFilePath = path.join(tempDir, ...objectName.split("/"));
   const outputHlsPath = path.join(tempDir, "master.m3u8");
 
   try {
     // 2. Tải video gốc từ kho MinIO xuống "thớt"
     console.log("[WORKER] [1/4] Đang tải file gốc từ MinIO về worker...");
     await job.updateProgress(2);
-    await minioClient.fGetObject(bucketName, originalFilename, inputFilePath);
+    fs.mkdirSync(path.dirname(inputFilePath), { recursive: true });
+    await minioClient.fGetObject(bucketName, objectName, inputFilePath);
     await job.updateProgress(5);
 
     // Tìm độ dài video (duration) bằng ffprobe
@@ -234,13 +240,20 @@ stream_0.m3u8`;
       }
     }
 
-    console.log("[WORKER] [4/4] Đang chạy AI pipeline (Whisper + Summary)...");
-    const aiResult = await aiService.runLocalWhisper(
-      inputFilePath,
-      tempDir,
-      minioClient,
-      job,
-    );
+    // 4. AI Pipeline — Skip cho meeting recording (thường quá dài, tốn tài nguyên)
+    let aiResult = null;
+    if (!isMeetingRecording) {
+      console.log("[WORKER] [4/4] Đang chạy AI pipeline (Whisper + Summary)...");
+      aiResult = await aiService.runLocalWhisper(
+        inputFilePath,
+        tempDir,
+        minioClient,
+        job,
+      );
+    } else {
+      console.log("[WORKER] [4/4] Bỏ qua AI pipeline (Meeting Recording).");
+      await job.updateProgress(95);
+    }
 
     // 5. Làm việc xong phải rửa "thớt" (Xóa file tạm kẻo sập ổ cứng)
     await job.updateProgress(98);

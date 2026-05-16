@@ -6,7 +6,7 @@ interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   logout: () => void;
   setUser: (user: User) => void;
   initAuth: () => Promise<void>;
@@ -22,6 +22,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { user, accessToken } = res.data;
     set({ user, token: accessToken, isAuthenticated: true });
     localStorage.setItem('wp_token', accessToken);
+    return user;
   },
 
   logout: () => {

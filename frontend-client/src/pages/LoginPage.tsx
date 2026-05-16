@@ -15,8 +15,8 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await login(email, password);
-      navigate("/");
+      const user = await login(email, password);
+      navigate(user.role === "ADMIN" ? "/admin/dashboard" : "/", { replace: true });
     } catch (err) {
       console.error(err);
     } finally {
@@ -124,10 +124,14 @@ export default function LoginPage() {
 
         {/* Google Sign-In */}
         <button
-          onClick={() => {
+          onClick={async () => {
             // TODO: Implement Google OAuth
-            login("google@waypoint.com", "");
-            navigate("/");
+            try {
+              const user = await login("google@waypoint.com", "");
+              navigate(user.role === "ADMIN" ? "/admin/dashboard" : "/", { replace: true });
+            } catch (err) {
+              console.error(err);
+            }
           }}
           className="w-full flex items-center justify-center gap-3 px-4 py-3
             bg-wp-surface-lowest rounded-wp text-sm font-medium text-wp-on-surface

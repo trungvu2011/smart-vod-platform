@@ -41,6 +41,32 @@ services:
     ports:
       - "6379:6379"
 
+  # 5. LiveKit SFU Server (WebRTC)
+  livekit:
+    image: livekit/livekit-server:latest
+    command: --config /etc/livekit.yaml
+    ports:
+      - "7880:7880"   # HTTP/WebSocket port
+      - "7881:7881/udp"   # RTC (WebRTC) port
+      - "7882:7882/tcp"   # TCP RTC port
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml
+    depends_on:
+      - redis
+
+  # 6. LiveKit Egress (Recording service)
+  livekit-egress:
+    image: livekit/egress:latest
+    environment:
+      EGRESS_CONFIG_FILE: /etc/egress.yaml
+    volumes:
+      - ./egress.yaml:/etc/egress.yaml
+    depends_on:
+      - livekit
+      - minio
+    cap_add:
+      - SYS_ADMIN  # Required for Chrome sandbox in Egress
+
 volumes:
   pgdata:
   miniodata:

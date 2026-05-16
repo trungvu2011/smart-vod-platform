@@ -136,3 +136,34 @@ export interface Session {
   lastActive: string;
   isCurrent: boolean;
 }
+
+// ============================
+// Meeting Types
+// ============================
+
+export interface MeetingRoom {
+  id: string;
+  name: string;
+  displayName: string;
+  hostId: string;
+  status: "WAITING" | "ACTIVE" | "ENDED";
+  maxParticipants: number;
+  egressId?: string;
+  startedAt?: string;
+  endedAt?: string;
+  createdAt: string;
+  host: VideoCreator;
+  _count?: {
+    participants: number;
+    recordings: number;
+  };
+}
+
+export interface MeetingParticipant {
+  id: string;
+  roomId: string;
+  userId: string;
+  joinedAt: string;
+  leftAt?: string;
+  user: VideoCreator;
+}

@@ -16,6 +16,8 @@ import LikedVideosPage from "./pages/LikedVideosPage";
 import UploadVideoPage from "./pages/UploadVideoPage";
 import MyVideosPage from "./pages/MyVideosPage";
 import SearchPage from "./pages/SearchPage";
+import MeetingsPage from "./pages/MeetingsPage";
+import MeetingRoomPage from "./pages/MeetingRoomPage";
 import AdminLayout from "./components/layout/AdminLayout";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
@@ -44,8 +46,19 @@ function RequireAdmin({ children }: { children: React.ReactNode }) {
 }
 
 function RedirectIfAuthenticated({ children }: { children: React.ReactNode }) {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  return isAuthenticated ? <Navigate to="/" replace /> : <>{children}</>;
+  const { isAuthenticated, user } = useAuthStore();
+
+  if (!isAuthenticated) return <>{children}</>;
+
+  if (!user) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-wp-surface">
+        <div className="w-12 h-12 border-4 border-wp-primary/30 border-t-wp-primary rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  return <Navigate to={user.role === "ADMIN" ? "/admin/dashboard" : "/"} replace />;
 }
 
 function App() {
@@ -107,6 +120,7 @@ function App() {
           <Route path="/upload" element={<UploadVideoPage />} />
           <Route path="/my-videos" element={<MyVideosPage />} />
           <Route path="/search" element={<SearchPage />} />
+          <Route path="/meetings" element={<MeetingsPage />} />
         </Route>
 
         {/* Admin routes */}
@@ -124,6 +138,16 @@ function App() {
           <Route path="moderation" element={<AdminModerationPage />} />
           <Route path="analytics" element={<AdminAnalyticsPage />} />
         </Route>
+
+        {/* Meeting Room — Full screen, outside MainLayout */}
+        <Route
+          path="/meetings/:roomName"
+          element={
+            <RequireAuth>
+              <MeetingRoomPage />
+            </RequireAuth>
+          }
+        />
 
         {/* Catch-all */}
         <Route path="*" element={<Navigate to="/login" replace />} />

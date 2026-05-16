@@ -37,6 +37,12 @@ enum Visibility {
   PRIVATE
 }
 
+enum RoomStatus {
+  WAITING    // Phòng đã tạo, chưa có ai vào
+  ACTIVE     // Đang họp
+  ENDED      // Đã kết thúc
+}
+
 // =========================================
 // MODELS
 // =========================================
@@ -56,14 +62,16 @@ model User {
   createdAt        DateTime       @default(now()) @map("created_at")
 
   // --- Quan hệ ---
-  videos        Video[]        // Video đã đăng
-  comments      Comment[]      // Bình luận đã viết
-  likes         Like[]         // Các lượt Like
-  commentLikes  CommentLike[]  // Các lượt Like bình luận
-  playlists     Playlist[]     // Danh sách phát tự tạo
-  watchHistory  WatchHistory[] // Lịch sử xem
-  notifications Notification[]
-  sessions      Session[]
+  videos         Video[]        // Video đã đăng
+  comments       Comment[]      // Bình luận đã viết
+  likes          Like[]         // Các lượt Like
+  commentLikes   CommentLike[]  // Các lượt Like bình luận
+  playlists      Playlist[]     // Danh sách phát tự tạo
+  watchHistory   WatchHistory[] // Lịch sử xem
+  notifications  Notification[]
+  sessions       Session[]
+  hostedRooms    Room[]         @relation("RoomHost")    // Phòng họp đã tạo
+  participations Participant[]  // Tham gia phòng họp
 
   @@map("users")
 }
@@ -81,12 +89,13 @@ model Video {
   createdAt       DateTime    @default(now()) @map("created_at")
 
   // --- Quan hệ ---
-  creator         User           @relation(fields: [creatorId], references: [id], onDelete: Cascade)
-  metadata        VideoMetadata?
-  comments        Comment[]
-  likes           Like[]
-  playlistItems   PlaylistItem[]
-  watchHistory    WatchHistory[]
+  creator          User              @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  metadata         VideoMetadata?
+  comments         Comment[]
+  likes            Like[]
+  playlistItems    PlaylistItem[]
+  watchHistory     WatchHistory[]
+  meetingRecording MeetingRecording? // Liên kết tới bản ghi cuộc họp (nếu có)
 
   @@map("videos")
 }
@@ -186,6 +195,59 @@ model WatchHistory {
   video      Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
 
   @@map("watch_history")
+}
+
+// =========================================
+// MEETING MODELS
+// =========================================
+
+model Room {
+  id              String     @id @default(uuid()) @map("room_id")
+  name            String     @unique @db.VarChar(255)  // LiveKit room name (unique slug)
+  displayName     String     @db.VarChar(255) @map("display_name")
+  hostId          String     @map("host_id")
+  status          RoomStatus @default(WAITING)
+  maxParticipants Int        @default(50) @map("max_participants")
+  egressId        String?    @map("egress_id")  // LiveKit Egress ID
+  startedAt       DateTime?  @map("started_at")
+  endedAt         DateTime?  @map("ended_at")
+  createdAt       DateTime   @default(now()) @map("created_at")
+
+  // --- Quan hệ ---
+  host           User              @relation("RoomHost", fields: [hostId], references: [id], onDelete: Cascade)
+  participants   Participant[]
+  recordings     MeetingRecording[]
+
+  @@map("rooms")
+}
+
+model Participant {
+  id       String    @id @default(uuid()) @map("participant_id")
+  roomId   String    @map("room_id")
+  userId   String    @map("user_id")
+  joinedAt DateTime  @default(now()) @map("joined_at")
+  leftAt   DateTime? @map("left_at")
+
+  // --- Quan hệ ---
+  room     Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@map("participants")
+}
+
+model MeetingRecording {
+  id        String   @id @default(uuid()) @map("recording_id")
+  roomId    String   @map("room_id")
+  videoId   String   @unique @map("video_id")
+  s3RawPath String   @map("s3_raw_path")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // --- Quan hệ ---
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  video     Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@map("meeting_recordings")
 }
 
 // =========================================

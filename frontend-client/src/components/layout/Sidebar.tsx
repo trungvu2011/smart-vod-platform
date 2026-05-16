@@ -3,10 +3,11 @@ import {
   Home, GraduationCap,
   History, ThumbsUp, ListVideo,
   Settings, ChevronLeft, ChevronRight,
-  Play, PlusCircle, Video as VideoIcon
+  Play, PlusCircle, Video as VideoIcon, Users, ShieldCheck
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useSidebarStore } from '../../store/useSidebarStore';
+import { useAuthStore } from '../../store/useAuthStore';
 
 interface NavItem {
   to: string;
@@ -16,6 +17,7 @@ interface NavItem {
 
 const discoveryItems: NavItem[] = [
   { to: '/', icon: <Home size={20} />, label: 'Home' },
+  { to: '/meetings', icon: <Users size={20} />, label: 'Meetings' },
   { to: '/playlists', icon: <GraduationCap size={20} />, label: 'Course Library' },
 ];
 
@@ -32,6 +34,7 @@ const footerItems: NavItem[] = [
 
 export default function Sidebar() {
   const { isCollapsed, toggle } = useSidebarStore();
+  const user = useAuthStore((s) => s.user);
   const location = useLocation();
 
   const linkClasses = (path: string) => {
@@ -112,6 +115,21 @@ export default function Sidebar() {
 
       {/* Footer nav */}
       <div className="px-3 pb-3 space-y-2">
+        {user?.role === 'ADMIN' && (
+          <Link
+            to="/admin/dashboard"
+            className={`w-full border border-wp-primary/30 bg-wp-primary/10 text-wp-primary font-bold rounded-xl
+              active:scale-95 transition-all flex items-center justify-center gap-2
+              hover:bg-wp-primary/15 hover:shadow-wp-glow
+              ${isCollapsed ? 'p-2.5' : 'py-3 px-3'}
+            `}
+            title="Admin Dashboard"
+          >
+            <ShieldCheck size={18} />
+            {!isCollapsed && <span className="text-sm">Admin Dashboard</span>}
+          </Link>
+        )}
+
         {/* Upload CTA */}
         <Link
           to="/upload"

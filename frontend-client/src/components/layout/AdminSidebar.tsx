@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
 
 export default function AdminSidebar() {
@@ -46,6 +46,10 @@ export default function AdminSidebar() {
       </nav>
 
       <div className="mt-auto pt-6 space-y-1 border-t border-wp-outline-variant/10">
+        <Link to="/" className="flex items-center gap-3 px-4 py-3 text-wp-primary hover:text-wp-primary-fixed hover:bg-wp-primary/10 transition-all rounded-lg text-sm font-bold">
+          <span className="material-symbols-outlined">switch_account</span>
+          User Dashboard
+        </Link>
         <a href="#" onClick={(e) => e.preventDefault()} className="flex items-center gap-3 px-4 py-3 text-wp-outline hover:text-wp-on-surface hover:bg-wp-surface-container-high/50 transition-all rounded-lg text-sm font-medium">
           <span className="material-symbols-outlined">help</span>
           Support

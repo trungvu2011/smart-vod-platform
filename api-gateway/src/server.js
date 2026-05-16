@@ -23,6 +23,8 @@ app.use(
     credentials: true,
   }),
 );
+// Raw body parser cho LiveKit webhook (phải đặt TRƯỚC express.json())
+app.use("/api/meetings/webhook", express.raw({ type: "*/*" }));
 app.use(express.json());
 app.use(cookieParser());
 
@@ -34,12 +36,14 @@ const adminRoutes = require("./routes/admin.routes");
 const videoRoutes = require("./routes/video.routes");
 const userRoutes = require("./routes/user.routes");
 const playlistRoutes = require("./routes/playlist.routes");
+const meetingRoutes = require("./routes/meeting.routes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/videos", videoRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/playlists", playlistRoutes);
+app.use("/api/meetings", meetingRoutes);
 
 // ====================================
 // GLOBAL ERROR HANDLER (phải đặt cuối cùng)
