@@ -4,7 +4,7 @@ const videoService = require("../services/video.service");
 const uploadVideo = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { title, description, category, visibility } = req.body;
+    const { title, description, category } = req.body;
 
     let videoFile = null;
     let thumbnailFile = null;
@@ -19,8 +19,7 @@ const uploadVideo = async (req, res, next) => {
       thumbnailFile,
       title,
       description,
-      category,
-      visibility
+      category
     );
 
     res.status(201).json({

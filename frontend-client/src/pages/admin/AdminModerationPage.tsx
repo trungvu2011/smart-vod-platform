@@ -323,9 +323,6 @@ export default function AdminModerationPage() {
                     <span className="bg-black/60 backdrop-blur-md px-2 py-1 rounded text-[10px] text-white font-medium">
                       {formatDuration(video.metadata?.duration)}
                     </span>
-                    <span className="bg-black/60 backdrop-blur-md px-2 py-1 rounded text-[10px] text-white font-medium">
-                      {video.visibility}
-                    </span>
                   </div>
                 </div>
 

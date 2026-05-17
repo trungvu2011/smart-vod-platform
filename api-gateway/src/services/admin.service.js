@@ -628,12 +628,6 @@ const getAnalyticsMetrics = async () => {
     _sum: { viewCount: true },
   });
 
-  // Video stats theo visibility
-  const videosByVisibility = await prisma.video.groupBy({
-    by: ['visibility'],
-    _count: { id: true },
-  });
-
   // Views timeline - 7 ngày gần nhất (dựa trên WatchHistory)
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -713,10 +707,6 @@ const getAnalyticsMetrics = async () => {
       category: v.category || 'Uncategorized',
       count: v._count.id,
       totalViews: v._sum.viewCount || 0,
-    })),
-    videosByVisibility: videosByVisibility.map(v => ({
-      visibility: v.visibility,
-      count: v._count.id,
     })),
     viewsTimeline,
     transcodingJobs,

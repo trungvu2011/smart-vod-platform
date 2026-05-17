@@ -192,7 +192,7 @@ const finalizeRecordingFromEgress = async (egressInfo, roomHint = null) => {
       title: `Ban ghi cuoc hop: ${room.displayName}`,
       description: `Ban ghi tu dong tu cuoc hop "${room.displayName}" vao ${new Date().toLocaleString("vi-VN")}`,
       category: "Meeting Recording",
-      visibility: "ORG",
+      visibility: "PUBLIC",
       status: "PENDING",
     },
   });

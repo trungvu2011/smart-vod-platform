@@ -36,7 +36,7 @@ export default function AdminAnalyticsPage() {
     );
   }
 
-  const { transcodingJobs, systemHealth, videosByCategory, videosByVisibility, viewsTimeline, storageEstimate } = metrics || {};
+  const { transcodingJobs, systemHealth, videosByCategory, viewsTimeline, storageEstimate } = metrics || {};
   const maxTimelineCount = Math.max(...(viewsTimeline?.map(d => d.count) || [1]), 1);
 
   const healthColor = (status: string) => {
@@ -321,24 +321,6 @@ export default function AdminAnalyticsPage() {
             </div>
           </div>
 
-          {/* By Visibility */}
-          <div className="bg-wp-surface-container-low rounded-2xl p-6 border border-wp-outline-variant/5">
-            <h4 className="text-sm font-bold text-wp-on-surface-variant mb-4 uppercase tracking-widest">By Visibility</h4>
-            <div className="flex gap-4">
-              {videosByVisibility?.map((vis) => (
-                <div key={vis.visibility} className="flex-1 bg-wp-surface-container rounded-xl p-4 text-center">
-                  <span className="material-symbols-outlined text-wp-primary mb-2">
-                    {vis.visibility === 'PUBLIC' ? 'public' : vis.visibility === 'ORG' ? 'corporate_fare' : 'lock'}
-                  </span>
-                  <p className="text-2xl font-black text-wp-on-surface">{vis.count}</p>
-                  <p className="text-[10px] uppercase tracking-widest text-wp-on-surface-variant font-bold mt-1">{vis.visibility}</p>
-                </div>
-              ))}
-              {(!videosByVisibility || videosByVisibility.length === 0) && (
-                <p className="text-sm text-wp-on-surface-variant">No visibility data.</p>
-              )}
-            </div>
-          </div>
         </div>
       </section>
 

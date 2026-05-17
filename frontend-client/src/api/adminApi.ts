@@ -44,7 +44,6 @@ export interface TopCreator {
 
 export interface AnalyticsMetrics {
   videosByCategory: { category: string; count: number; totalViews: number }[];
-  videosByVisibility: { visibility: string; count: number }[];
   viewsTimeline: DailyCount[];
   transcodingJobs: TranscodingJob[];
   systemHealth: {

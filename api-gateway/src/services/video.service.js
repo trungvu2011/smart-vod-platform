@@ -15,7 +15,7 @@ const canViewNonReadyVideo = (video, requester) => {
  * Upload video: lưu file lên MinIO, tạo DB record PENDING, đẩy job BullMQ.
  * Trả về ngay lập tức — KHÔNG chờ FFmpeg hay AI xử lý.
  */
-const uploadVideo = async (userId, file, thumbnailFile, title, description, category, visibility) => {
+const uploadVideo = async (userId, file, thumbnailFile, title, description, category) => {
   if (!file) {
     const err = new Error("Please attach a video file!");
     err.statusCode = 400;
@@ -61,7 +61,7 @@ const uploadVideo = async (userId, file, thumbnailFile, title, description, cate
       title: title,
       description: description || null,
       category: category || null,
-      visibility: visibility || "ORG",
+      visibility: "PUBLIC",
       status: "PENDING",
       thumbnailUrl: thumbUrl,
     },

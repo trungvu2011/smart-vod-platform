@@ -39,7 +39,7 @@ export interface Video {
   creator: VideoCreator;
   metadata?: VideoMetadata;
   category?: string;
-  visibility: "PUBLIC" | "ORG" | "PRIVATE";
+  visibility: "PUBLIC";
   _count?: {
     likes: number;
     comments: number;

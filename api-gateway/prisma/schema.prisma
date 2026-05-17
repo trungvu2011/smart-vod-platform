@@ -83,7 +83,7 @@ model Video {
   description     String?     @db.Text
   thumbnailUrl    String?     @map("thumbnail_url")
   category        String?     @db.VarChar(100)
-  visibility      Visibility  @default(ORG)
+  visibility      Visibility  @default(PUBLIC)
   status          VideoStatus @default(PENDING)
   viewCount       Int         @default(0) @map("view_count")
   createdAt       DateTime    @default(now()) @map("created_at")
