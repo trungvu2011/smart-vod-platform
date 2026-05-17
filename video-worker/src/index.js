@@ -36,7 +36,10 @@ worker.on("completed", async (job, returnvalue) => {
     const [updatedVideo] = await prisma.$transaction([
       prisma.video.update({
         where: { id: job.data.videoId },
-        data: { status: "READY" },
+        data: {
+          status: "READY",
+          ...(returnvalue.thumbnailUrl && { thumbnailUrl: returnvalue.thumbnailUrl }),
+        },
       }),
       prisma.videoMetadata.upsert({
         where: { videoId: job.data.videoId },

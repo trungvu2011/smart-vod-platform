@@ -214,6 +214,8 @@ export default function MeetingRoomPage() {
           serverUrl={serverUrl}
           token={token}
           connect={true}
+          audio={true}
+          video={true}
           onDisconnected={handleDisconnected}
           data-lk-theme="default"
           style={{ height: '100%' }}

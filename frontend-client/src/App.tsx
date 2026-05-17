@@ -18,6 +18,7 @@ import MyVideosPage from "./pages/MyVideosPage";
 import SearchPage from "./pages/SearchPage";
 import MeetingsPage from "./pages/MeetingsPage";
 import MeetingRoomPage from "./pages/MeetingRoomPage";
+import MeetingRecordingTemplatePage from "./pages/MeetingRecordingTemplatePage";
 import AdminLayout from "./components/layout/AdminLayout";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
@@ -148,6 +149,9 @@ function App() {
             </RequireAuth>
           }
         />
+
+        {/* Room Composite Egress template route (no auth wrapper) */}
+        <Route path="/egress-template" element={<MeetingRecordingTemplatePage />} />
 
         {/* Catch-all */}
         <Route path="*" element={<Navigate to="/login" replace />} />

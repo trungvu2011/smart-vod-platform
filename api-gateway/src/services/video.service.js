@@ -68,6 +68,7 @@ const uploadVideo = async (userId, file, thumbnailFile, title, description, cate
       videoId: newVideo.id,
       originalFilename: uniqueFilename,
       fileUrl: rawUrl,
+      shouldGenerateThumbnail: !thumbUrl,
     },
     { jobId: newVideo.id } // Set custom jobId to easily track progress
   );

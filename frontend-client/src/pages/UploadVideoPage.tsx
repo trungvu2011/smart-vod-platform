@@ -359,7 +359,7 @@ export default function UploadVideoPage() {
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
                   <ImageIcon size={28} className="text-wp-on-surface-variant" />
-                  <p className="text-xs text-wp-on-surface-variant">Upload thumbnail</p>
+                  <p className="text-xs text-wp-on-surface-variant">Upload thumbnail (optional)</p>
                   <p className="text-[10px] text-wp-outline">16:9 recommended</p>
                 </div>
               )}

@@ -1,10 +1,11 @@
 # LiveKit Server Configuration (Development)
 port: 7880
+redis:
+  address: redis:6379
 rtc:
   tcp_port: 7881
   udp_port: 7882
   use_external_ip: false
-  node_ip: 127.0.0.1
   enable_loopback_candidate: true
   allow_tcp_fallback: true
 turn:

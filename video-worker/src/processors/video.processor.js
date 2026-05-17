@@ -9,9 +9,38 @@ const ffprobeInstaller = require("@ffprobe-installer/ffprobe");
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 ffmpeg.setFfprobePath(ffprobeInstaller.path);
 
+const getThumbnailTimestamp = (duration) => {
+  if (!duration || duration <= 0) return 1;
+  return Math.min(Math.max(Math.floor(duration * 0.1), 1), 10);
+};
+
+const generateThumbnail = async ({ inputFilePath, tempDir, videoId, bucketName, duration }) => {
+  const thumbnailPath = path.join(tempDir, "thumbnail.jpg");
+  const timestamp = getThumbnailTimestamp(duration);
+
+  await new Promise((resolve, reject) => {
+    ffmpeg(inputFilePath)
+      .seekInput(timestamp)
+      .frames(1)
+      .videoFilters("scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720")
+      .outputOptions(["-q:v 3"])
+      .output(thumbnailPath)
+      .on("end", resolve)
+      .on("error", reject)
+      .run();
+  });
+
+  const minioObjectName = `thumbnails/${videoId}.jpg`;
+  await minioClient.fPutObject(bucketName, minioObjectName, thumbnailPath, {
+    "Content-Type": "image/jpeg",
+  });
+
+  return `${process.env.MINIO_PUBLIC_URL}/${bucketName}/${minioObjectName}`;
+};
+
 const processVideo = async (job) => {
   // Lấy thông tin video cần xử lý từ job data
-  const { videoId, originalFilename, isMeetingRecording } = job.data;
+  const { videoId, originalFilename, isMeetingRecording, shouldGenerateThumbnail } = job.data;
   const bucketName = process.env.MINIO_BUCKET_NAME;
 
   console.log(`\n[WORKER] Bắt đầu xử lý video ID: ${videoId}`);
@@ -47,6 +76,23 @@ const processVideo = async (job) => {
       });
     });
     console.log(`[WORKER] Độ dài video: ${videoDuration} giây`);
+
+    let thumbnailUrl = null;
+    if (shouldGenerateThumbnail) {
+      try {
+        console.log("[WORKER] Dang tao thumbnail tu video...");
+        thumbnailUrl = await generateThumbnail({
+          inputFilePath,
+          tempDir,
+          videoId,
+          bucketName,
+          duration: videoDuration,
+        });
+        console.log(`[WORKER] Da tao thumbnail: ${thumbnailUrl}`);
+      } catch (thumbnailError) {
+        console.warn("[WORKER] Khong the tao thumbnail tu dong:", thumbnailError.message);
+      }
+    }
 
     // 3. Dùng FFmpeg băm nhỏ video ra chuẩn HLS đa độ phân giải (ABR)
     // 3. Dùng FFmpeg băm nhỏ video ra chuẩn HLS đa độ phân giải (ABR)
@@ -265,6 +311,7 @@ stream_0.m3u8`;
     return {
       hlsUrl: `${process.env.MINIO_PUBLIC_URL}/${bucketName}/hls/${videoId}/master.m3u8`,
       duration: videoDuration,
+      ...(thumbnailUrl && { thumbnailUrl }),
       ...(aiResult && {
         transcriptUrl: aiResult.transcript_url,
         aiSummary: aiResult.ai_summary,

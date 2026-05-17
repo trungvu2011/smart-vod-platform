@@ -124,6 +124,7 @@ const finalizeRecordingFromEgress = async (egressInfo, roomHint = null) => {
       videoId: video.id,
       originalFilename: s3FilePath,
       isMeetingRecording: true,
+      shouldGenerateThumbnail: true,
     },
     { jobId: video.id },
   );
@@ -182,6 +183,24 @@ const scheduleEgressFinalization = (egressId, delayMs = 5000, attemptsLeft = 6) 
       scheduleEgressFinalization(egressId, delayMs, attemptsLeft - 1);
     }
   }, delayMs);
+};
+
+const resolveEgressTemplateUrl = () => {
+  const fallbackUrl = "http://host.docker.internal:5173/egress-template";
+  const configuredUrl =
+    process.env.LIVEKIT_EGRESS_TEMPLATE_URL ||
+    `${(process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/+$/, "")}/egress-template`;
+
+  try {
+    const parsedUrl = new URL(configuredUrl);
+    if (["localhost", "127.0.0.1", "::1"].includes(parsedUrl.hostname)) {
+      parsedUrl.hostname = "host.docker.internal";
+    }
+    return parsedUrl.toString();
+  } catch (error) {
+    console.warn("[LIVEKIT EGRESS] LIVEKIT_EGRESS_TEMPLATE_URL khong hop le:", configuredUrl);
+    return fallbackUrl;
+  }
 };
 
 // =========================================
@@ -385,14 +404,16 @@ const startRecording = async (roomName, userId) => {
       },
     });
 
-    // Layout "speaker-dark": tự động hiển thị screen share lớn ở giữa khi có,
-    // và hiển thị grid participants khi không có share.
+    // Layout "speaker": tự động ưu tiên màn hình share khi có,
+    // và vẫn hiển thị participant khi không share.
     // Ghi lại toàn bộ giao diện phòng họp (bao gồm cả webcam + screen share).
+    const egressTemplateUrl = resolveEgressTemplateUrl();
     const egressInfo = await egressClient.startRoomCompositeEgress(
       roomName,
       { file: output },
       {
-        layout: "speaker-dark",
+        layout: "grid",
+        customBaseUrl: egressTemplateUrl,
         encodingOptions: EncodingOptionsPreset.H264_1080P_30,
       },
     );
