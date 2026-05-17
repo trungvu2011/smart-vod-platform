@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Plus, Video, Clock, ArrowRight, X, Radio, UserCheck } from 'lucide-react';
+import { Users, Plus, Video, Clock, ArrowRight, X, Radio, UserCheck, Building2 } from 'lucide-react';
 import { meetingApi } from '../api/meetingApi';
-import type { MeetingRoom } from '../types';
+import { userApi } from '../api/userApi';
+import type { DepartmentOption, MeetingRoom } from '../types';
 
 export default function MeetingsPage() {
   const navigate = useNavigate();
@@ -12,6 +13,9 @@ export default function MeetingsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createName, setCreateName] = useState('');
   const [createMax, setCreateMax] = useState(50);
+  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
+  const [loadingDepartments, setLoadingDepartments] = useState(false);
+  const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState<string | null>(null);
 
@@ -31,6 +35,44 @@ export default function MeetingsPage() {
     fetchRooms();
   }, [fetchRooms]);
 
+  useEffect(() => {
+    if (!showCreateModal) return;
+
+    const fetchDepartments = async () => {
+      try {
+        setLoadingDepartments(true);
+        const data = await userApi.getDepartments();
+        setDepartments(data);
+      } catch (err) {
+        console.error('Failed to fetch departments:', err);
+        setDepartments([]);
+      } finally {
+        setLoadingDepartments(false);
+      }
+    };
+
+    fetchDepartments();
+  }, [showCreateModal]);
+
+  const openCreateModal = () => {
+    setShowCreateModal(true);
+  };
+
+  const closeCreateModal = () => {
+    setShowCreateModal(false);
+    setCreateName('');
+    setCreateMax(50);
+    setSelectedDepartments([]);
+  };
+
+  const toggleDepartment = (department: string) => {
+    setSelectedDepartments((current) =>
+      current.includes(department)
+        ? current.filter((item) => item !== department)
+        : [...current, department]
+    );
+  };
+
   const handleCreate = async () => {
     if (!createName.trim()) return;
     try {
@@ -38,9 +80,9 @@ export default function MeetingsPage() {
       const res = await meetingApi.createRoom({
         displayName: createName.trim(),
         maxParticipants: createMax,
+        invitedDepartments: selectedDepartments,
       });
-      setShowCreateModal(false);
-      setCreateName('');
+      closeCreateModal();
       // Navigate to the newly created room
       navigate(`/meetings/${res.room.name}`);
     } catch (err) {
@@ -100,7 +142,7 @@ export default function MeetingsPage() {
           </p>
         </div>
         <button
-          onClick={() => setShowCreateModal(true)}
+          onClick={openCreateModal}
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-wp-gradient text-wp-on-primary
             font-semibold text-sm shadow-lg hover:shadow-wp-glow active:scale-95 transition-all"
         >
@@ -142,7 +184,7 @@ export default function MeetingsPage() {
           <p className="text-lg font-medium">Chưa có phòng họp nào</p>
           <p className="text-sm mt-1">Tạo phòng mới để bắt đầu cuộc họp trực tuyến.</p>
           <button
-            onClick={() => setShowCreateModal(true)}
+            onClick={openCreateModal}
             className="mt-4 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-wp-gradient text-wp-on-primary
               font-semibold text-sm shadow-lg hover:shadow-wp-glow active:scale-95 transition-all"
           >
@@ -230,7 +272,7 @@ export default function MeetingsPage() {
       {/* Create Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-wp-surface-container rounded-2xl w-full max-w-md mx-4 shadow-2xl border border-wp-outline/10 animate-in fade-in zoom-in-95">
+          <div className="bg-wp-surface-container rounded-2xl w-full max-w-lg mx-4 shadow-2xl border border-wp-outline/10 animate-in fade-in zoom-in-95">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-5 border-b border-wp-outline/10">
               <h2 className="text-lg font-bold text-wp-on-surface flex items-center gap-2">
@@ -238,7 +280,7 @@ export default function MeetingsPage() {
                 Tạo phòng họp mới
               </h2>
               <button
-                onClick={() => setShowCreateModal(false)}
+                onClick={closeCreateModal}
                 className="p-1.5 rounded-lg hover:bg-wp-surface-container-high text-wp-on-surface-variant transition-colors"
               >
                 <X size={18} />
@@ -279,12 +321,64 @@ export default function MeetingsPage() {
                     outline-none text-sm transition-all"
                 />
               </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-wp-on-surface">
+                    Mời phòng ban
+                  </label>
+                  {selectedDepartments.length > 0 && (
+                    <span className="text-xs font-medium text-wp-primary">
+                      {selectedDepartments.length} đã chọn
+                    </span>
+                  )}
+                </div>
+
+                <div className="rounded-xl border border-wp-outline/20 bg-wp-surface overflow-hidden">
+                  {loadingDepartments ? (
+                    <div className="flex items-center justify-center gap-2 py-4 text-sm text-wp-on-surface-variant">
+                      <div className="w-4 h-4 border-2 border-wp-primary/30 border-t-wp-primary rounded-full animate-spin" />
+                      Đang tải phòng ban...
+                    </div>
+                  ) : departments.length === 0 ? (
+                    <div className="px-4 py-4 text-sm text-wp-on-surface-variant">
+                      Chưa có phòng ban nào để mời.
+                    </div>
+                  ) : (
+                    <div className="max-h-44 overflow-y-auto divide-y divide-wp-outline/10">
+                      {departments.map((department) => {
+                        const checked = selectedDepartments.includes(department.name);
+                        return (
+                          <label
+                            key={department.name}
+                            className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-wp-surface-container-high transition-colors"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleDepartment(department.name)}
+                              className="w-4 h-4 accent-wp-primary"
+                            />
+                            <Building2 size={16} className="text-wp-on-surface-variant shrink-0" />
+                            <span className="flex-1 min-w-0 text-sm font-medium text-wp-on-surface truncate">
+                              {department.name}
+                            </span>
+                            <span className="text-xs text-wp-on-surface-variant shrink-0">
+                              {department.userCount} người
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Modal Footer */}
             <div className="flex justify-end gap-3 p-5 border-t border-wp-outline/10">
               <button
-                onClick={() => setShowCreateModal(false)}
+                onClick={closeCreateModal}
                 className="px-5 py-2.5 rounded-xl text-sm font-medium text-wp-on-surface-variant
                   hover:bg-wp-surface-container-high transition-colors"
               >

@@ -8,7 +8,13 @@ const {
   S3Upload,
 } = require("livekit-server-sdk");
 const prisma = require("../config/prisma");
-const { roomService, egressClient, apiKey, apiSecret, livekitHost } = require("../config/livekit");
+const {
+  roomService,
+  egressClient,
+  apiKey,
+  apiSecret,
+  livekitHost,
+} = require("../config/livekit");
 const videoQueue = require("../config/queue");
 
 const TERMINAL_EGRESS_STATUSES = new Set([
@@ -20,7 +26,8 @@ const TERMINAL_EGRESS_STATUSES = new Set([
 
 const getRecordingFilePath = (egressInfo) => {
   const fileResult = egressInfo?.fileResults?.[0];
-  const rawPath = fileResult?.filename || fileResult?.location || egressInfo?.file?.filename;
+  const rawPath =
+    fileResult?.filename || fileResult?.location || egressInfo?.file?.filename;
   if (!rawPath) return null;
 
   const bucketName = process.env.MINIO_BUCKET_NAME || "videos";
@@ -31,19 +38,91 @@ const getRecordingFilePath = (egressInfo) => {
     .replace(/^\/+/, "");
 };
 
-const isTerminalEgress = (egressInfo) => TERMINAL_EGRESS_STATUSES.has(egressInfo?.status);
+const isTerminalEgress = (egressInfo) =>
+  TERMINAL_EGRESS_STATUSES.has(egressInfo?.status);
 
 const publishNotification = async (userId, notification) => {
   try {
     const redisClient = require("../config/redis");
-    await redisClient.publish("notification_channel", JSON.stringify({
-      userId,
-      eventName: "new_notification",
-      payload: notification,
-    }));
+    await redisClient.publish(
+      "notification_channel",
+      JSON.stringify({
+        userId,
+        eventName: "new_notification",
+        payload: notification,
+      }),
+    );
   } catch (e) {
     console.warn("[WEBHOOK] SSE publish error:", e.message);
   }
+};
+
+const normalizeDepartments = (departments) => {
+  if (!Array.isArray(departments)) return [];
+
+  const normalized = departments
+    .filter((department) => typeof department === "string")
+    .map((department) => department.trim())
+    .filter(Boolean);
+
+  return [...new Set(normalized)];
+};
+
+const notifyInvitedDepartments = async ({
+  hostId,
+  hostName,
+  roomName,
+  displayName,
+  invitedDepartments,
+}) => {
+  const departments = normalizeDepartments(invitedDepartments);
+  if (departments.length === 0) return 0;
+
+  const departmentSet = new Set(departments);
+  const candidateUsers = await prisma.user.findMany({
+    where: {
+      status: "ACTIVE",
+      id: { not: hostId },
+      department: { not: null },
+    },
+    select: {
+      id: true,
+      department: true,
+    },
+  });
+
+  const invitedUsers = candidateUsers.filter((user) => {
+    const department = user.department?.trim();
+    return department && departmentSet.has(department);
+  });
+
+  const results = await Promise.allSettled(
+    invitedUsers.map(async (user) => {
+      const notification = await prisma.notification.create({
+        data: {
+          userId: user.id,
+          type: "meeting",
+          title: "Invitations to join meeting",
+          message: `${hostName || "Host"} has invited you to join the meeting "${displayName}".`,
+          actionUrl: `/meetings/${roomName}`,
+        },
+      });
+
+      await publishNotification(user.id, notification);
+      return notification;
+    }),
+  );
+
+  const failedCount = results.filter(
+    (result) => result.status === "rejected",
+  ).length;
+  if (failedCount > 0) {
+    console.warn(
+      `[MEETING] Failed to create ${failedCount} invitation notification(s).`,
+    );
+  }
+
+  return results.length - failedCount;
 };
 
 const finalizeRecordingFromEgress = async (egressInfo, roomHint = null) => {
@@ -62,7 +141,9 @@ const finalizeRecordingFromEgress = async (egressInfo, roomHint = null) => {
   }
 
   if (!room) {
-    console.warn(`[LIVEKIT EGRESS] Khong tim thay room voi egressId: ${egressInfo.egressId}`);
+    console.warn(
+      `[LIVEKIT EGRESS] Khong tim thay room voi egressId: ${egressInfo.egressId}`,
+    );
     return { acknowledged: true, egressId: egressInfo.egressId };
   }
 
@@ -79,8 +160,14 @@ const finalizeRecordingFromEgress = async (egressInfo, roomHint = null) => {
       });
     }
 
-    console.warn(`[LIVEKIT EGRESS] Egress ${egressInfo.egressId} chua co file result.`);
-    return { acknowledged: true, egressId: egressInfo.egressId, error: "no file path" };
+    console.warn(
+      `[LIVEKIT EGRESS] Egress ${egressInfo.egressId} chua co file result.`,
+    );
+    return {
+      acknowledged: true,
+      egressId: egressInfo.egressId,
+      error: "no file path",
+    };
   }
 
   const existingRecording = await prisma.meetingRecording.findFirst({
@@ -129,7 +216,9 @@ const finalizeRecordingFromEgress = async (egressInfo, roomHint = null) => {
     { jobId: video.id },
   );
 
-  console.log(`[LIVEKIT EGRESS] Da tao Video ${video.id} va day job BullMQ cho recording.`);
+  console.log(
+    `[LIVEKIT EGRESS] Da tao Video ${video.id} va day job BullMQ cho recording.`,
+  );
 
   await prisma.room.update({
     where: { id: room.id },
@@ -143,7 +232,10 @@ const finalizeRecordingFromEgress = async (egressInfo, roomHint = null) => {
   try {
     await roomService.deleteRoom(room.name);
   } catch (e) {
-    console.warn("[LIVEKIT EGRESS] Loi xoa phong LiveKit (co the da tu xoa):", e.message);
+    console.warn(
+      "[LIVEKIT EGRESS] Loi xoa phong LiveKit (co the da tu xoa):",
+      e.message,
+    );
   }
 
   const notification = await prisma.notification.create({
@@ -158,10 +250,18 @@ const finalizeRecordingFromEgress = async (egressInfo, roomHint = null) => {
 
   await publishNotification(room.hostId, notification);
 
-  return { acknowledged: true, egressId: egressInfo.egressId, videoId: video.id };
+  return {
+    acknowledged: true,
+    egressId: egressInfo.egressId,
+    videoId: video.id,
+  };
 };
 
-const scheduleEgressFinalization = (egressId, delayMs = 5000, attemptsLeft = 6) => {
+const scheduleEgressFinalization = (
+  egressId,
+  delayMs = 5000,
+  attemptsLeft = 6,
+) => {
   if (!egressId || attemptsLeft <= 0) return;
 
   setTimeout(async () => {
@@ -170,7 +270,9 @@ const scheduleEgressFinalization = (egressId, delayMs = 5000, attemptsLeft = 6) 
       const egressInfo = egresses?.[0];
 
       if (!egressInfo) {
-        console.warn(`[LIVEKIT EGRESS] Khong tim thay egress ${egressId} khi fallback.`);
+        console.warn(
+          `[LIVEKIT EGRESS] Khong tim thay egress ${egressId} khi fallback.`,
+        );
         return;
       }
 
@@ -179,7 +281,10 @@ const scheduleEgressFinalization = (egressId, delayMs = 5000, attemptsLeft = 6) 
         scheduleEgressFinalization(egressId, delayMs, attemptsLeft - 1);
       }
     } catch (error) {
-      console.warn(`[LIVEKIT EGRESS] Fallback finalize loi cho ${egressId}:`, error.message);
+      console.warn(
+        `[LIVEKIT EGRESS] Fallback finalize loi cho ${egressId}:`,
+        error.message,
+      );
       scheduleEgressFinalization(egressId, delayMs, attemptsLeft - 1);
     }
   }, delayMs);
@@ -198,7 +303,10 @@ const resolveEgressTemplateUrl = () => {
     }
     return parsedUrl.toString();
   } catch (error) {
-    console.warn("[LIVEKIT EGRESS] LIVEKIT_EGRESS_TEMPLATE_URL khong hop le:", configuredUrl);
+    console.warn(
+      "[LIVEKIT EGRESS] LIVEKIT_EGRESS_TEMPLATE_URL khong hop le:",
+      configuredUrl,
+    );
     return fallbackUrl;
   }
 };
@@ -206,7 +314,8 @@ const resolveEgressTemplateUrl = () => {
 // =========================================
 // HELPER: Generate LiveKit Access Token
 // =========================================
-const buildParticipantIdentity = (userId) => `${userId}:${crypto.randomUUID().slice(0, 8)}`;
+const buildParticipantIdentity = (userId) =>
+  `${userId}:${crypto.randomUUID().slice(0, 8)}`;
 
 const generateToken = async (userId, userName, roomName, isHost = false) => {
   const participantIdentity = buildParticipantIdentity(userId);
@@ -228,7 +337,12 @@ const generateToken = async (userId, userName, roomName, isHost = false) => {
 // =========================================
 // Tạo phòng họp mới
 // =========================================
-const createRoom = async (userId, displayName, maxParticipants = 50) => {
+const createRoom = async (
+  userId,
+  displayName,
+  maxParticipants = 50,
+  invitedDepartments = [],
+) => {
   if (!displayName) {
     const err = new Error("Vui lòng nhập tên phòng họp!");
     err.statusCode = 400;
@@ -253,7 +367,9 @@ const createRoom = async (userId, displayName, maxParticipants = 50) => {
     });
   } catch (lkErr) {
     console.error("[LIVEKIT] Lỗi tạo phòng trên LiveKit:", lkErr.message);
-    const err = new Error("Không thể tạo phòng họp. LiveKit Server có thể chưa khởi động.");
+    const err = new Error(
+      "Không thể tạo phòng họp. LiveKit Server có thể chưa khởi động.",
+    );
     err.statusCode = 503;
     throw err;
   }
@@ -284,11 +400,21 @@ const createRoom = async (userId, displayName, maxParticipants = 50) => {
 
   // 4. Generate token cho host
   const token = await generateToken(userId, user.fullName, roomName, true);
+  const notificationCount = await notifyInvitedDepartments({
+    hostId: userId,
+    hostName: user.fullName,
+    roomName,
+    displayName,
+    invitedDepartments,
+  });
 
   return {
     room,
     token,
-    serverUrl: livekitHost.replace("http://", "ws://").replace("https://", "wss://"),
+    serverUrl: livekitHost
+      .replace("http://", "ws://")
+      .replace("https://", "wss://"),
+    notificationCount,
   };
 };
 
@@ -353,7 +479,9 @@ const joinRoom = async (userId, roomName) => {
 
   return {
     token,
-    serverUrl: livekitHost.replace("http://", "ws://").replace("https://", "wss://"),
+    serverUrl: livekitHost
+      .replace("http://", "ws://")
+      .replace("https://", "wss://"),
     room,
     isHost,
   };
@@ -394,12 +522,12 @@ const startRecording = async (roomName, userId) => {
       output: {
         case: "s3",
         value: new S3Upload({
-        accessKey: process.env.MINIO_ACCESS_KEY,
-        secret: process.env.MINIO_SECRET_KEY,
-        // Egress chạy trong Docker → phải dùng tên mạng Docker để truy cập MinIO
-        endpoint: process.env.MINIO_EGRESS_ENDPOINT || "http://minio:9000",
-        bucket: process.env.MINIO_BUCKET_NAME,
-        forcePathStyle: true,
+          accessKey: process.env.MINIO_ACCESS_KEY,
+          secret: process.env.MINIO_SECRET_KEY,
+          // Egress chạy trong Docker → phải dùng tên mạng Docker để truy cập MinIO
+          endpoint: process.env.MINIO_EGRESS_ENDPOINT || "http://minio:9000",
+          bucket: process.env.MINIO_BUCKET_NAME,
+          forcePathStyle: true,
         }),
       },
     });
@@ -458,9 +586,14 @@ const endRoom = async (roomName, userId) => {
     scheduleEgressFinalization(room.egressId);
     try {
       await egressClient.stopEgress(room.egressId);
-      console.log(`[LIVEKIT] Đã gửi lệnh stop egress: ${room.egressId}. Chờ webhook egress_ended...`);
+      console.log(
+        `[LIVEKIT] Đã gửi lệnh stop egress: ${room.egressId}. Chờ webhook egress_ended...`,
+      );
     } catch (e) {
-      console.warn("[LIVEKIT] Lỗi stop egress (có thể đã kết thúc):", e.message);
+      console.warn(
+        "[LIVEKIT] Lỗi stop egress (có thể đã kết thúc):",
+        e.message,
+      );
     }
 
     // Kick tất cả participants ra khỏi phòng, nhưng GIỮ room sống cho egress finalize.
@@ -470,12 +603,19 @@ const endRoom = async (roomName, userId) => {
       const participants = await roomService.listParticipants(roomName);
       await Promise.all(
         participants.map((p) =>
-          roomService.removeParticipant(roomName, p.identity).catch((e) =>
-            console.warn(`[LIVEKIT] Lỗi kick participant ${p.identity}:`, e.message)
-          )
-        )
+          roomService
+            .removeParticipant(roomName, p.identity)
+            .catch((e) =>
+              console.warn(
+                `[LIVEKIT] Lỗi kick participant ${p.identity}:`,
+                e.message,
+              ),
+            ),
+        ),
       );
-      console.log(`[LIVEKIT] Đã kick ${participants.length} participants khỏi phòng ${roomName}`);
+      console.log(
+        `[LIVEKIT] Đã kick ${participants.length} participants khỏi phòng ${roomName}`,
+      );
     } catch (e) {
       console.warn("[LIVEKIT] Lỗi khi kick participants:", e.message);
     }

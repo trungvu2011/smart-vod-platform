@@ -1,5 +1,5 @@
 import api from './axios';
-import type { HistoryItem, Video, User, Notification } from '../types';
+import type { DepartmentOption, HistoryItem, Video, User, Notification } from '../types';
 
 export const userApi = {
   getMe: async () => {
@@ -43,6 +43,11 @@ export const userApi = {
     if (cursor) params.cursor = cursor;
     const res = await api.get<{ notifications: Notification[]; nextCursor: string | null }>('/users/notifications', { params });
     return res.data;
+  },
+
+  getDepartments: async () => {
+    const res = await api.get<{ departments: DepartmentOption[] }>('/users/departments');
+    return res.data.departments;
   },
 
   markNotificationRead: async (id: string) => {

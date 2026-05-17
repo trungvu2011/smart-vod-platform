@@ -3,6 +3,7 @@ import api from './axios';
 export interface CreateRoomPayload {
   displayName: string;
   maxParticipants?: number;
+  invitedDepartments?: string[];
 }
 
 export interface MeetingRoomResponse {
@@ -25,6 +26,7 @@ export interface MeetingRoomResponse {
   };
   token: string;
   serverUrl: string;
+  notificationCount?: number;
 }
 
 export interface JoinRoomResponse {

@@ -121,7 +121,7 @@ export interface TranscriptEntry {
 
 export interface Notification {
   id: string;
-  type: string; // "training" | "townhall" | "course_update" | "system"
+  type: string; // "training" | "townhall" | "course_update" | "system" | "meeting"
   title: string;
   message: string;
   read: boolean;
@@ -135,6 +135,11 @@ export interface Session {
   location: string;
   lastActive: string;
   isCurrent: boolean;
+}
+
+export interface DepartmentOption {
+  name: string;
+  userCount: number;
 }
 
 // ============================

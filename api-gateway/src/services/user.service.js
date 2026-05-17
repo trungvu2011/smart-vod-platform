@@ -112,6 +112,27 @@ const getNotifications = async (userId, cursor = null, limit = 10) => {
   return { notifications, nextCursor };
 };
 
+const getDepartments = async () => {
+  const users = await prisma.user.findMany({
+    where: {
+      status: "ACTIVE",
+      department: { not: null },
+    },
+    select: { department: true },
+  });
+
+  const counts = new Map();
+  for (const user of users) {
+    const department = user.department?.trim();
+    if (!department) continue;
+    counts.set(department, (counts.get(department) || 0) + 1);
+  }
+
+  return Array.from(counts.entries())
+    .map(([name, userCount]) => ({ name, userCount }))
+    .sort((a, b) => a.name.localeCompare(b.name, "vi"));
+};
+
 const getActivities = async (userId) => {
   // Model Activity chưa có trong schema — trả về array rỗng
   return [];
@@ -279,6 +300,7 @@ module.exports = {
   upsertHistory,
   getLikedVideos,
   getNotifications,
+  getDepartments,
   getActivities,
   getSessions,
   getMe,

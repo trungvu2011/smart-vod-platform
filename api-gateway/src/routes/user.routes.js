@@ -5,6 +5,7 @@ const {
   upsertHistory,
   getLikedVideos,
   getNotifications,
+  getDepartments,
   streamNotifications,
   getActivities,
   getSessions,
@@ -41,6 +42,7 @@ router.get("/liked-videos", getLikedVideos);
 router.get("/notifications", getNotifications);
 router.post("/notifications/read-all", markAllNotificationsRead);
 router.patch("/notifications/:id/read", markNotificationRead);
+router.get("/departments", getDepartments);
 
 // ── Activities ────────────────────────────────────────────────────────────────
 router.get("/activities", getActivities);
