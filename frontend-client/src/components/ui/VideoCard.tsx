@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Clock, Eye } from 'lucide-react';
 import type { Video } from '../../types';
+import UserAvatar from './UserAvatar';
 
 interface VideoCardProps {
   video: Video;
@@ -74,10 +75,11 @@ export default function VideoCard({ video, size = 'md', showChannel = true, prog
       {/* Info */}
       <div className="flex gap-3">
         {showChannel && (
-          <img
+          <UserAvatar
             src={video.creator.avatarUrl}
-            alt={video.creator.fullName}
-            className="w-9 h-9 rounded-full bg-wp-surface-container-high flex-shrink-0 mt-0.5"
+            name={video.creator.fullName}
+            className="w-9 h-9 bg-wp-surface-container-high flex-shrink-0 mt-0.5"
+            initialClassName="text-xs"
           />
         )}
         <div className="min-w-0">

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { adminApi } from "../../api/adminApi";
 import type { DashboardMetrics } from "../../api/adminApi";
 import { Link } from "react-router-dom";
+import UserAvatar from "../../components/ui/UserAvatar";
 
 export default function AdminDashboardPage() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
@@ -249,13 +250,12 @@ export default function AdminDashboardPage() {
             {m?.topCreators?.map((creator, i) => (
               <div key={creator.id} className="flex items-center gap-3 p-4 border-b border-wp-outline-variant/5 last:border-0 hover:bg-wp-surface-container-high/30 transition-colors">
                 <span className="text-sm font-black text-wp-on-surface-variant/30 w-6 text-center">{i + 1}</span>
-                {creator.avatarUrl ? (
-                  <img src={creator.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover" />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-wp-primary/20 flex items-center justify-center text-wp-primary font-bold text-xs">
-                    {creator.fullName[0].toUpperCase()}
-                  </div>
-                )}
+                <UserAvatar
+                  src={creator.avatarUrl}
+                  name={creator.fullName}
+                  className="w-8 h-8"
+                  initialClassName="text-xs"
+                />
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm text-wp-on-surface truncate">{creator.fullName}</p>
                   <p className="text-[11px] text-wp-on-surface-variant/50">{creator.department || 'No Dept'}</p>

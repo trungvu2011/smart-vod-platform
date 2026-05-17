@@ -408,6 +408,33 @@ const getAllVideos = async ({ status, page = 1, limit = 20 } = {}) => {
  * Duyệt video
  */
 const approveVideo = async (videoId) => {
+  const existingVideo = await prisma.video.findUnique({
+    where: { id: videoId },
+    include: {
+      metadata: {
+        select: { hlsMasterUrl: true },
+      },
+    },
+  });
+
+  if (!existingVideo) {
+    const err = new Error("Video not found.");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (existingVideo.status !== "PENDING") {
+    const err = new Error("Only videos in PENDING status can be approved.");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (!existingVideo.metadata?.hlsMasterUrl) {
+    const err = new Error("Video is not ready for review yet. Please wait for processing to finish.");
+    err.statusCode = 400;
+    throw err;
+  }
+
   const updated = await prisma.video.update({
     where: { id: videoId },
     data: { status: 'READY' }

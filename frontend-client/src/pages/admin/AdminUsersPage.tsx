@@ -6,6 +6,7 @@ import ConfirmModal from "../../components/ui/ConfirmModal";
 import CreateUserModal from "../../components/ui/CreateUserModal";
 import EditUserModal from "../../components/ui/EditUserModal";
 import ImportUsersCsvModal from "../../components/ui/ImportUsersCsvModal";
+import UserAvatar from "../../components/ui/UserAvatar";
 
 export default function AdminUsersPage() {
   const [data, setData] = useState<PaginatedUsers | null>(null);
@@ -192,13 +193,11 @@ export default function AdminUsersPage() {
                 <tr key={user.id} className="hover:bg-wp-surface-bright/20 transition-colors">
                   <td className="px-8 py-5">
                     <div className="flex items-center gap-4">
-                      {user.avatarUrl ? (
-                         <img alt="" className={`h-10 w-10 rounded-full object-cover ${user.status === 'SUSPENDED' ? 'grayscale opacity-60' : ''}`} src={user.avatarUrl} />
-                      ) : (
-                        <div className={`h-10 w-10 flex items-center justify-center font-bold text-white rounded-full ${user.status === 'SUSPENDED' ? 'bg-gray-500' : 'bg-wp-primary'}`}>
-                          {user.fullName[0].toUpperCase()}
-                        </div>
-                      )}
+                      <UserAvatar
+                        src={user.avatarUrl}
+                        name={user.fullName}
+                        className={`h-10 w-10 ${user.status === 'SUSPENDED' ? 'grayscale opacity-60' : ''}`}
+                      />
                       <div>
                         <div className={`font-bold ${user.status === 'SUSPENDED' ? 'text-wp-on-surface-variant' : 'text-wp-on-surface'}`}>{user.fullName}</div>
                         <div className={`text-xs ${user.status === 'SUSPENDED' ? 'text-wp-outline' : 'text-wp-on-surface-variant'}`}>{user.email}</div>

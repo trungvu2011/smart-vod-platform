@@ -3,6 +3,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import NotificationDropdown from '../ui/NotificationDropdown';
+import UserAvatar from '../ui/UserAvatar';
 
 export default function Navbar() {
   const { user, logout } = useAuthStore();
@@ -51,10 +52,11 @@ export default function Navbar() {
             className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg
               hover:bg-wp-surface-container-high transition-colors"
           >
-            <img
+            <UserAvatar
               src={user?.avatarUrl}
-              alt={user?.fullName}
-              className="w-8 h-8 rounded-full bg-wp-surface-container-high"
+              name={user?.fullName}
+              className="w-8 h-8 bg-wp-surface-container-high"
+              initialClassName="text-xs"
             />
             <div className="hidden md:block text-left">
               <p className="text-sm font-medium text-wp-on-surface leading-tight">{user?.fullName}</p>

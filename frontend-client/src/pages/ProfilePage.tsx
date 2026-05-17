@@ -10,6 +10,7 @@ import { Link } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { playlistApi } from '../api/playlistApi';
 import type { Playlist } from '../types';
+import UserAvatar from '../components/ui/UserAvatar';
 
 export default function ProfilePage() {
   const { user } = useAuthStore();
@@ -36,11 +37,11 @@ export default function ProfilePage() {
           {/* Avatar with gradient glow */}
           <div className="relative group flex-shrink-0">
             <div className="absolute -inset-1 bg-wp-gradient rounded-full opacity-25 blur-sm transition duration-700 group-hover:opacity-50" />
-            <img
-              src={user.avatarUrl || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + user.fullName}
-              alt={user.fullName}
-              className="relative w-40 h-40 lg:w-48 lg:h-48 rounded-full object-cover
-                border-4 border-wp-surface shadow-wp-ambient"
+            <UserAvatar
+              src={user.avatarUrl}
+              name={user.fullName}
+              className="relative w-40 h-40 lg:w-48 lg:h-48 border-4 border-wp-surface shadow-wp-ambient"
+              initialClassName="text-4xl"
             />
           </div>
 

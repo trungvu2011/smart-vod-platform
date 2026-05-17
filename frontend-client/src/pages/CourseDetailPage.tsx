@@ -7,6 +7,7 @@ import {
 import { playlistApi } from '../api/playlistApi';
 import { userApi } from '../api/userApi';
 import SelectVideosModal from '../components/ui/SelectVideosModal';
+import UserAvatar from '../components/ui/UserAvatar';
 import { useAuthStore } from '../store/useAuthStore';
 import type { Playlist, Video, HistoryItem } from '../types';
 
@@ -127,10 +128,12 @@ export default function CourseDetailPage() {
           <div className="flex flex-wrap items-center gap-10">
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 rounded-full border-2 border-wp-surface-bright p-0.5 shrink-0">
-                <img 
-                  className="w-full h-full object-cover rounded-full bg-wp-surface-container-high" 
-                  alt={playlist.user?.fullName} 
-                  src={playlist.user?.avatarUrl || `https://ui-avatars.com/api/?name=${playlist.user?.fullName}`}
+                <UserAvatar
+                  className="w-full h-full bg-wp-surface-container-high"
+                  alt={playlist.user?.fullName}
+                  name={playlist.user?.fullName}
+                  src={playlist.user?.avatarUrl}
+                  initialClassName="text-base"
                 />
               </div>
               <div className="flex flex-col justify-center">
@@ -275,10 +278,11 @@ export default function CourseDetailPage() {
             <h4 className="text-xs font-bold text-wp-on-surface-variant/60 uppercase tracking-widest mb-6">About the Curator</h4>
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-4">
-                <img 
-                   className="w-12 h-12 rounded-full object-cover shrink-0 bg-wp-surface-container-high" 
-                   alt={playlist.user?.fullName} 
-                   src={playlist.user?.avatarUrl || `https://ui-avatars.com/api/?name=${playlist.user?.fullName}`}
+                <UserAvatar
+                  className="w-12 h-12 shrink-0 bg-wp-surface-container-high"
+                  alt={playlist.user?.fullName}
+                  name={playlist.user?.fullName}
+                  src={playlist.user?.avatarUrl}
                 />
                 <div className="min-w-0">
                   <p className="font-bold text-wp-on-surface truncate">{playlist.user?.fullName}</p>

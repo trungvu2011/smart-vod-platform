@@ -5,6 +5,12 @@ const redisClient = require("../config/redis");
 const path = require("path");
 const crypto = require("crypto");
 
+const canViewNonReadyVideo = (video, requester) => {
+  if (!video || video.status === "READY") return true;
+  if (!requester) return false;
+  return requester.role === "ADMIN" || requester.id === video.creatorId;
+};
+
 /**
  * Upload video: lưu file lên MinIO, tạo DB record PENDING, đẩy job BullMQ.
  * Trả về ngay lập tức — KHÔNG chờ FFmpeg hay AI xử lý.
@@ -86,6 +92,8 @@ const listVideos = async (page = 1, limit = 12, status = null, category = null, 
   const where = {};
   if (status) {
     where.status = status;
+  } else {
+    where.status = "READY";
   }
   if (category) {
     where.category = category;
@@ -130,7 +138,7 @@ const listVideos = async (page = 1, limit = 12, status = null, category = null, 
 /**
  * Lấy chi tiết 1 video kèm metadata (HLS URL, subtitle, AI summary) + like count.
  */
-const getVideoById = async (videoId) => {
+const getVideoById = async (videoId, requester = null) => {
   const video = await prisma.video.findUnique({
     where: { id: videoId },
     include: {
@@ -147,6 +155,11 @@ const getVideoById = async (videoId) => {
   if (!video) {
     const err = new Error("Không tìm thấy video này!");
     err.statusCode = 404;
+    throw err;
+  }
+  if (!canViewNonReadyVideo(video, requester)) {
+    const err = new Error("Video is pending moderation and is not publicly available.");
+    err.statusCode = 403;
     throw err;
   }
 
@@ -274,7 +287,22 @@ const deleteVideo = async (videoId, userId, userRole) => {
   await prisma.video.delete({ where: { id: videoId } });
 };
 
-const getAiSummary = async (videoId) => {
+const getAiSummary = async (videoId, requester = null) => {
+  const video = await prisma.video.findUnique({
+    where: { id: videoId },
+    select: { id: true, status: true, creatorId: true },
+  });
+  if (!video) {
+    const err = new Error("Không tìm thấy video này!");
+    err.statusCode = 404;
+    throw err;
+  }
+  if (!canViewNonReadyVideo(video, requester)) {
+    const err = new Error("Video is pending moderation and is not publicly available.");
+    err.statusCode = 403;
+    throw err;
+  }
+
   const metadata = await prisma.videoMetadata.findUnique({
     where: { videoId }
   });

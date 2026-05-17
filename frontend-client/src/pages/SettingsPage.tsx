@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { userApi } from '../api/userApi';
+import UserAvatar from '../components/ui/UserAvatar';
 
 type SettingsTab = 'account' | 'appearance' | 'notifications' | 'security' | 'data';
 
@@ -95,7 +96,11 @@ export default function SettingsPage() {
         <div className="md:w-64 flex-shrink-0">
           {/* User card */}
           <div className="flex items-center gap-3 p-4 mb-4 rounded-wp-lg bg-wp-surface-container">
-            <img src={user?.avatarUrl || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + user?.fullName} alt={user?.fullName} className="w-12 h-12 rounded-full hidden md:block" />
+            <UserAvatar
+              src={user?.avatarUrl}
+              name={user?.fullName}
+              className="w-12 h-12 hidden md:block"
+            />
             <div>
               <p className="text-sm font-semibold text-wp-on-surface">{user?.fullName}</p>
               <p className="text-xs text-wp-on-surface-variant">{user?.title}</p>

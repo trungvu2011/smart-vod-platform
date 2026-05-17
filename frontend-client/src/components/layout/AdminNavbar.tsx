@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
+import UserAvatar from '../ui/UserAvatar';
 
 export default function AdminNavbar() {
   const { user } = useAuthStore();
@@ -33,13 +34,13 @@ export default function AdminNavbar() {
         <button className="bg-gradient-to-br from-wp-primary to-wp-primary-container text-wp-on-primary px-5 py-2 rounded-lg font-semibold text-sm transition-all active:scale-95 shadow-lg shadow-wp-primary/10">
           Upload
         </button>
-        <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-wp-surface-container-high ml-2 cursor-pointer">
-          <img 
-            src={user?.avatarUrl || "https://picsum.photos/seed/admin/100/100"} 
-            alt="Admin profile" 
-            className="w-full h-full object-cover"
-          />
-        </div>
+        <UserAvatar
+          src={user?.avatarUrl}
+          name={user?.fullName}
+          alt="Admin profile"
+          className="w-9 h-9 border-2 border-wp-surface-container-high ml-2 cursor-pointer"
+          initialClassName="text-xs"
+        />
       </div>
     </nav>
   );

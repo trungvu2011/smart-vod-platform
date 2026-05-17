@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { User } from '../../types';
+import UserAvatar from './UserAvatar';
 
 interface EditUserModalProps {
   open: boolean;
@@ -72,13 +73,11 @@ export default function EditUserModal({ open, user, onClose, onSaved, onSubmit }
 
         {/* User preview */}
         <div className="flex items-center gap-3 p-3 bg-wp-surface-lowest rounded-xl mb-6">
-          {user.avatarUrl ? (
-            <img src={user.avatarUrl} alt="" className="w-10 h-10 rounded-full object-cover" />
-          ) : (
-            <div className="w-10 h-10 rounded-full bg-wp-primary flex items-center justify-center text-white font-bold">
-              {user.fullName[0].toUpperCase()}
-            </div>
-          )}
+          <UserAvatar
+            src={user.avatarUrl}
+            name={user.fullName}
+            className="w-10 h-10"
+          />
           <div>
             <p className="text-sm font-bold text-wp-on-surface">{user.fullName}</p>
             <p className="text-xs text-wp-on-surface-variant">{user.email}</p>

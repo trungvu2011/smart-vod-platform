@@ -6,92 +6,99 @@ require("dotenv").config();
 
 const prisma = new PrismaClient();
 
-console.log("[WORKER] Khởi động video-worker...");
+console.log("[WORKER] Khoi dong video-worker...");
 
-// Khởi tạo Worker, dán mắt vào hàng đợi có tên là 'video-jobs'
 const worker = new Worker(
   "video-jobs",
   async (job) => {
-    // Khi có việc rớt vào hàng đợi, quăng nó cho bộ vi xử lý FFmpeg
     return await processVideo(job);
   },
   {
     connection: redisConnection,
-    concurrency: 1, // Chỉ xử lý 1 video tại một thời điểm để tránh nổ RAM/CPU server
+    concurrency: 1,
     lockDuration: 300000,
   },
 );
 
-// Bắt sự kiện khi băm video THÀNH CÔNG
 worker.on("completed", async (job, returnvalue) => {
-  console.log(`[WORKER] Job ${job.id} đã hoàn thành.`);
+  console.log(`[WORKER] Job ${job.id} da hoan thanh.`);
   console.log(`[WORKER] Link HLS: ${returnvalue.hlsUrl}`);
 
-  // Cập nhật video sang READY và upsert metadata theo schema DB mới.
+  // Meeting recording auto-publishes, regular uploads stay pending admin review.
   try {
     const aiSummary = returnvalue.aiSummary ? returnvalue.aiSummary : null;
     const subtitleUrl = returnvalue.transcriptUrl ? returnvalue.transcriptUrl : null;
     const duration = returnvalue.duration || 0;
+    const isMeetingRecording = Boolean(job?.data?.isMeetingRecording);
+    const nextStatus = isMeetingRecording ? "READY" : "PENDING";
 
     const [updatedVideo] = await prisma.$transaction([
       prisma.video.update({
         where: { id: job.data.videoId },
         data: {
-          status: "READY",
-          ...(returnvalue.thumbnailUrl && { thumbnailUrl: returnvalue.thumbnailUrl }),
+          status: nextStatus,
+          ...(returnvalue.thumbnailUrl && {
+            thumbnailUrl: returnvalue.thumbnailUrl,
+          }),
         },
       }),
       prisma.videoMetadata.upsert({
         where: { videoId: job.data.videoId },
         update: {
           hlsMasterUrl: returnvalue.hlsUrl,
-          subtitleUrl: subtitleUrl,
-          aiSummary: aiSummary,
-          duration: duration,
+          subtitleUrl,
+          aiSummary,
+          duration,
         },
         create: {
           videoId: job.data.videoId,
           hlsMasterUrl: returnvalue.hlsUrl,
-          subtitleUrl: subtitleUrl,
-          aiSummary: aiSummary,
-          duration: duration,
+          subtitleUrl,
+          aiSummary,
+          duration,
         },
       }),
     ]);
+
     console.log(
-      `[WORKER] Đã cập nhật READY và metadata cho video ${job.data.videoId}.`,
+      `[WORKER] Da cap nhat ${nextStatus} va metadata cho video ${job.data.videoId}.`,
     );
 
-    // Create Notification
     if (updatedVideo && updatedVideo.creatorId) {
+      const notificationTitle = isMeetingRecording
+        ? "Video Processing Complete"
+        : "Video Submitted For Review";
+      const notificationMessage = isMeetingRecording
+        ? `Your video "${updatedVideo.title}" is ready to be watched.`
+        : `Your video "${updatedVideo.title}" has finished processing and is waiting for admin approval.`;
+
       const notification = await prisma.notification.create({
         data: {
           userId: updatedVideo.creatorId,
           type: "system",
-          title: "Video Processing Complete",
-          message: `Your video "${updatedVideo.title}" is ready to be watched.`,
-          actionUrl: `/watch/${updatedVideo.id}`,
+          title: notificationTitle,
+          message: notificationMessage,
+          actionUrl: isMeetingRecording ? `/watch/${updatedVideo.id}` : "/my-videos",
         },
       });
 
-      // Publish to Redis for SSE real-time push
-      redisConnection.publish("notification_channel", JSON.stringify({
-        userId: updatedVideo.creatorId,
-        eventName: "new_notification",
-        payload: notification
-      }));
+      await redisConnection.publish(
+        "notification_channel",
+        JSON.stringify({
+          userId: updatedVideo.creatorId,
+          eventName: "new_notification",
+          payload: notification,
+        }),
+      );
     }
-
   } catch (error) {
-    console.error("[ERROR] Lỗi cập nhật trạng thái video:", error);
+    console.error("[ERROR] Loi cap nhat trang thai video:", error);
   }
 });
 
-// Bắt sự kiện khi băm video THẤT BẠI
 worker.on("failed", async (job, err) => {
-  console.error(`[ERROR] Job ${job.id} thất bại:`, err.message);
+  console.error(`[ERROR] Job ${job.id} that bai:`, err.message);
 
-  // Cập nhật trạng thái video trong database thành FAILED
   try {
     const updatedVideo = await prisma.video.update({
       where: { id: job.data.videoId },
@@ -105,18 +112,20 @@ worker.on("failed", async (job, err) => {
           type: "system",
           title: "Video Processing Failed",
           message: `Your video "${updatedVideo.title}" failed to process. Please try uploading again.`,
-          actionUrl: `/profile`,
+          actionUrl: "/profile",
         },
       });
 
-      // Publish to Redis for SSE real-time push
-      redisConnection.publish("notification_channel", JSON.stringify({
-        userId: updatedVideo.creatorId,
-        eventName: "new_notification",
-        payload: notification
-      }));
+      await redisConnection.publish(
+        "notification_channel",
+        JSON.stringify({
+          userId: updatedVideo.creatorId,
+          eventName: "new_notification",
+          payload: notification,
+        }),
+      );
     }
   } catch (dbErr) {
-    console.error("[ERROR] Lỗi cập nhật trạng thái FAILED:", dbErr);
+    console.error("[ERROR] Loi cap nhat trang thai FAILED:", dbErr);
   }
 });

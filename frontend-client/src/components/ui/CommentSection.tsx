@@ -11,6 +11,7 @@ import {
 import { commentApi } from "../../api/commentApi";
 import { useAuthStore } from "../../store/useAuthStore";
 import type { Comment } from "../../types";
+import UserAvatar from "./UserAvatar";
 
 interface CommentWithReplies extends Comment {
   replies?: CommentWithReplies[];
@@ -202,13 +203,11 @@ export default function CommentSection({ videoId }: CommentSectionProps) {
       {/* New comment input */}
       {isAuthenticated ? (
         <div className="flex gap-3">
-          <img
-            src={
-              user?.avatarUrl ||
-              `https://ui-avatars.com/api/?name=${user?.fullName}`
-            }
+          <UserAvatar
+            src={user?.avatarUrl}
+            name={user?.fullName}
             alt="You"
-            className="w-10 h-10 rounded-full bg-wp-surface-container-high flex-shrink-0"
+            className="w-10 h-10 bg-wp-surface-container-high flex-shrink-0"
           />
           <div className="flex-1 relative">
             <textarea
@@ -313,8 +312,6 @@ function CommentItem({
 }: CommentItemProps) {
   const { isAuthenticated, user } = useAuthStore();
   const userName = comment.user?.fullName || "Unknown User";
-  const userAvatar =
-    comment.user?.avatarUrl || `https://ui-avatars.com/api/?name=${userName}`;
   const isLiked = !!comment.liked;
   const likeCount = comment.likes ?? comment._count?.likes ?? 0;
   // We don't have roles embedded directly in `comment.user` unless we update backend join, so we omit role badge or hardcode
@@ -325,10 +322,12 @@ function CommentItem({
         className={`flex gap-3 p-3 rounded-xl transition-colors
         ${isReply ? "" : "hover:bg-wp-surface-container-low/50"}`}
       >
-        <img
-          src={userAvatar}
+        <UserAvatar
+          src={comment.user?.avatarUrl}
+          name={userName}
           alt={userName}
-          className={`rounded-full bg-wp-surface-container-high object-cover flex-shrink-0 ${isReply ? "w-8 h-8" : "w-10 h-10"}`}
+          className={`bg-wp-surface-container-high flex-shrink-0 ${isReply ? "w-8 h-8" : "w-10 h-10"}`}
+          initialClassName={isReply ? "text-xs" : "text-sm"}
         />
         <div className="flex-1 min-w-0 space-y-1.5">
           {/* Author line */}
@@ -375,13 +374,12 @@ function CommentItem({
           {/* Reply input box */}
           {replyingTo && setReplyContent && onSubmitReply && (
             <div className="mt-3 flex gap-2">
-              <img
-                src={
-                  user?.avatarUrl ||
-                  `https://ui-avatars.com/api/?name=${user?.fullName}`
-                }
+              <UserAvatar
+                src={user?.avatarUrl}
+                name={user?.fullName}
                 alt="You"
-                className="w-8 h-8 rounded-full bg-wp-surface-container-high object-cover flex-shrink-0"
+                className="w-8 h-8 bg-wp-surface-container-high flex-shrink-0"
+                initialClassName="text-xs"
               />
               <div className="flex-1 relative">
                 <textarea

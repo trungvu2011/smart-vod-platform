@@ -24,7 +24,7 @@ const uploadVideo = async (req, res, next) => {
     );
 
     res.status(201).json({
-      message: "Video uploaded successfully. Pending processing.",
+      message: "Video uploaded successfully. Pending processing and admin review.",
       video,
     });
   } catch (error) {
@@ -56,7 +56,7 @@ const listVideos = async (req, res, next) => {
 const getVideoById = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const video = await videoService.getVideoById(id);
+    const video = await videoService.getVideoById(id, req.user || null);
 
     res.status(200).json({
       message: "Video details retrieved successfully.",
@@ -126,7 +126,7 @@ const deleteVideo = async (req, res, next) => {
 const getAiSummary = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const summaryStr = await videoService.getAiSummary(id);
+    const summaryStr = await videoService.getAiSummary(id, req.user || null);
     let parsedSummary = null;
 
     if (summaryStr) {

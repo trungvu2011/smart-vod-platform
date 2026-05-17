@@ -9,6 +9,7 @@ import GlassPanel from '../components/ui/GlassPanel';
 import CommentSection from '../components/ui/CommentSection';
 import AddToPlaylistModal from '../components/ui/AddToPlaylistModal';
 import CreatePlaylistModal from '../components/ui/CreatePlaylistModal';
+import UserAvatar from '../components/ui/UserAvatar';
 import { videoApi } from '../api/videoApi';
 import { userApi } from '../api/userApi';
 import { commentApi } from '../api/commentApi';
@@ -107,10 +108,10 @@ export default function WatchVideoPage() {
 
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <img
-                  src={video.creator.avatarUrl || `https://ui-avatars.com/api/?name=${video.creator.fullName}`}
-                  alt={video.creator.fullName}
-                  className="w-10 h-10 rounded-full bg-wp-surface-container-high object-cover"
+                <UserAvatar
+                  src={video.creator.avatarUrl}
+                  name={video.creator.fullName}
+                  className="w-10 h-10 bg-wp-surface-container-high"
                 />
                 <div>
                   <p className="text-sm font-medium text-wp-on-surface">{video.creator.fullName}</p>

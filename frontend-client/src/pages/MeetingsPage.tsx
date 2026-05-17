@@ -4,6 +4,7 @@ import { Users, Plus, Video, Clock, ArrowRight, X, Radio, UserCheck, Building2 }
 import { meetingApi } from '../api/meetingApi';
 import { userApi } from '../api/userApi';
 import type { DepartmentOption, MeetingRoom } from '../types';
+import UserAvatar from '../components/ui/UserAvatar';
 
 export default function MeetingsPage() {
   const navigate = useNavigate();
@@ -214,9 +215,12 @@ export default function MeetingsPage() {
 
                 {/* Host info */}
                 <div className="flex items-center gap-2 mb-4 text-sm text-wp-on-surface-variant">
-                  <div className="w-6 h-6 rounded-full bg-wp-primary/20 flex items-center justify-center text-xs font-bold text-wp-primary">
-                    {room.host?.fullName?.charAt(0) || '?'}
-                  </div>
+                  <UserAvatar
+                    src={room.host?.avatarUrl}
+                    name={room.host?.fullName}
+                    className="w-6 h-6"
+                    initialClassName="text-[10px]"
+                  />
                   <span>{room.host?.fullName || 'Unknown'}</span>
                 </div>
 
