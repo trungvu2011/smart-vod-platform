@@ -169,6 +169,21 @@ const exportUsersCsv = async (req, res, next) => {
   }
 };
 
+const importUsersCsv = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "CSV file is required." });
+    }
+
+    const csv = await adminService.importUsersCsv(req.file.buffer);
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", "attachment; filename=created_accounts.csv");
+    res.status(200).send(csv);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createUser,
   listUsers,
@@ -184,4 +199,5 @@ module.exports = {
   getDashboardMetrics,
   getAnalyticsMetrics,
   exportUsersCsv,
+  importUsersCsv,
 };

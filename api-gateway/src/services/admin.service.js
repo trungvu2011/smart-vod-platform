@@ -1,9 +1,13 @@
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
+const { parse } = require("csv-parse/sync");
 const prisma = require("../config/prisma");
 const sseManager = require("./sse");
 const redisClient = require("../config/redis");
 const videoQueue = require("../config/queue");
+
+const IMPORT_EMAIL_DOMAIN = "waypoint.com";
+const VALID_ROLES = new Set(["USER", "ADMIN"]);
 
 // ─── USER MANAGEMENT ──────────────────────────────────────────────────────────
 
@@ -49,6 +53,164 @@ const createUser = async ({ fullName, email, role, department, title }) => {
     },
     defaultPassword,
   };
+};
+
+const normalizeVietnameseText = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D");
+
+const toEmailToken = (value) =>
+  normalizeVietnameseText(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+
+const buildEmailLocalPart = (fullName) => {
+  const tokens = String(fullName || "")
+    .trim()
+    .split(/\s+/)
+    .map(toEmailToken)
+    .filter(Boolean);
+
+  if (tokens.length === 0) return "";
+  const givenName = tokens[tokens.length - 1];
+  const initials = tokens.slice(0, -1).map((token) => token[0]).join("");
+  return `${givenName}${initials}`;
+};
+
+const buildUniqueEmail = (fullName, usedEmails) => {
+  const localPart = buildEmailLocalPart(fullName);
+  if (!localPart) return "";
+
+  let suffix = 1;
+  let email = `${localPart}@${IMPORT_EMAIL_DOMAIN}`;
+  while (usedEmails.has(email.toLowerCase())) {
+    suffix += 1;
+    email = `${localPart}${suffix}@${IMPORT_EMAIL_DOMAIN}`;
+  }
+
+  usedEmails.add(email.toLowerCase());
+  return email;
+};
+
+const escapeCsvValue = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+
+const rowsToCsv = (headers, rows) => [
+  headers.join(","),
+  ...rows.map((row) => row.map(escapeCsvValue).join(",")),
+].join("\n");
+
+const parseImportCsvRecords = (buffer) => {
+  const encodings = ["utf8", "utf16le"];
+  const delimiters = [",", ";", "\t"];
+  const parsedCandidates = [];
+
+  for (const encoding of encodings) {
+    const text = buffer.toString(encoding);
+    for (const delimiter of delimiters) {
+      try {
+        const records = parse(text, {
+          bom: true,
+          columns: true,
+          skip_empty_lines: true,
+          trim: true,
+          relax_column_count: true,
+          delimiter,
+        });
+
+        if (!records.length) continue;
+
+        const firstRecord = records[0] || {};
+        const keys = Object.keys(firstRecord).map((key) => key.toLowerCase().trim());
+        const hasExpectedHeader = keys.some((key) => ["fullname", "full name"].includes(key));
+
+        parsedCandidates.push({
+          records,
+          score: hasExpectedHeader ? 10 : 1,
+        });
+      } catch {
+        // Try next encoding/delimiter candidate.
+      }
+    }
+  }
+
+  if (!parsedCandidates.length) {
+    const err = new Error(
+      "Invalid CSV format. Please use UTF-8/UTF-16 CSV with columns: fullName,department,title,role."
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  parsedCandidates.sort((a, b) => b.score - a.score);
+  return parsedCandidates[0].records;
+};
+
+const importUsersCsv = async (buffer) => {
+  if (!buffer || !buffer.length) {
+    const err = new Error("Please upload a CSV file.");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const records = parseImportCsvRecords(buffer);
+  if (!records.length) {
+    const err = new Error("CSV file has no data rows.");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const existingUsers = await prisma.user.findMany({ select: { email: true } });
+  const usedEmails = new Set(existingUsers.map((user) => user.email.toLowerCase()));
+  const rows = [];
+
+  for (const [index, record] of records.entries()) {
+    const rowNumber = index + 2;
+    const fullName = String(record.fullName || record["Full Name"] || "").trim();
+    const department = String(record.department || record.Department || "").trim();
+    const title = String(record.title || record.Title || "").trim();
+    const role = String(record.role || record.Role || "USER").trim().toUpperCase() || "USER";
+
+    const baseOutput = [rowNumber, "", fullName, "", role, department, title, "", ""];
+
+    try {
+      if (!fullName) {
+        throw new Error("fullName is required");
+      }
+      if (!VALID_ROLES.has(role)) {
+        throw new Error("role must be USER or ADMIN");
+      }
+
+      const email = buildUniqueEmail(fullName, usedEmails);
+      if (!email) {
+        throw new Error("Cannot generate account email from fullName");
+      }
+
+      const defaultPassword = crypto.randomBytes(6).toString("hex");
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(defaultPassword, salt);
+
+      await prisma.user.create({
+        data: {
+          fullName,
+          email,
+          passwordHash: hashedPassword,
+          role,
+          department: department || null,
+          title: title || null,
+        },
+      });
+
+      rows.push([rowNumber, "CREATED", fullName, email, role, department, title, defaultPassword, ""]);
+    } catch (error) {
+      rows.push([...baseOutput.slice(0, 1), "FAILED", ...baseOutput.slice(2, 8), error.message]);
+    }
+  }
+
+  const headers = ["row", "status", "fullName", "email", "role", "department", "title", "password", "error"];
+  return rowsToCsv(headers, rows);
 };
 
 /**
@@ -557,12 +719,7 @@ const exportUsersCsv = async () => {
     u.department || '', u.title || '', u.createdAt.toISOString(),
   ]);
 
-  const csvLines = [
-    headers.join(','),
-    ...rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')),
-  ];
-
-  return csvLines.join('\n');
+  return rowsToCsv(headers, rows);
 };
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
@@ -605,4 +762,5 @@ module.exports = {
   getDashboardMetrics,
   getAnalyticsMetrics,
   exportUsersCsv,
+  importUsersCsv,
 };

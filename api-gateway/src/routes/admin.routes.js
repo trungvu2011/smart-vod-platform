@@ -1,8 +1,14 @@
 const express = require("express");
+const multer = require("multer");
 const router = express.Router();
 const adminController = require("../controllers/admin.controller");
 const { verifyToken } = require("../middlewares/auth.middleware");
 const { roleGuard } = require("../middlewares/role.middleware");
+
+const csvUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 },
+});
 
 // Tất cả route admin đều yêu cầu: đăng nhập + role ADMIN
 router.use(verifyToken, roleGuard("ADMIN"));
@@ -10,6 +16,7 @@ router.use(verifyToken, roleGuard("ADMIN"));
 // Users
 router.post("/users", adminController.createUser);
 router.get("/users", adminController.listUsers);
+router.post("/users/import-csv", csvUpload.single("file"), adminController.importUsersCsv);
 router.put("/users/:id", adminController.updateUser);
 router.put("/users/:id/status", adminController.updateUserStatus);
 router.put("/users/:id/role", adminController.updateUserRole);

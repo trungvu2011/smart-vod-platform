@@ -113,6 +113,26 @@ export const adminApi = {
       window.URL.revokeObjectURL(url);
     }),
 
+  importUsersCsv: (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    return api.post("/admin/users/import-csv", formData, {
+      responseType: "blob",
+      headers: {
+        "Content-Type": undefined,
+      },
+    }).then(res => {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: "text/csv" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `created_accounts_${timestamp}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    });
+  },
+
   // Moderation
   getModerationQueue: (status?: string) =>
     api.get<{ videos: Video[] }>("/admin/moderation/queue", { params: status ? { status } : {} }).then(res => res.data.videos),
