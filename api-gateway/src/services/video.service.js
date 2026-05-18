@@ -2,6 +2,7 @@ const prisma = require("../config/prisma");
 const minioClient = require("../config/minio");
 const videoQueue = require("../config/queue");
 const redisClient = require("../config/redis");
+const searchService = require("./search.service");
 const path = require("path");
 const crypto = require("crypto");
 
@@ -89,6 +90,15 @@ const uploadVideo = async (userId, file, thumbnailFile, title, description, cate
 const listVideos = async (page = 1, limit = 12, status = null, category = null, q = null) => {
   const skip = (page - 1) * limit;
 
+  if (q) {
+    try {
+      const searchResult = await searchService.searchVideos({ q, page, limit, status, category });
+      if (searchResult) return searchResult;
+    } catch (error) {
+      console.error("[Search] Elasticsearch search failed, falling back to Prisma:", error.message);
+    }
+  }
+
   const where = {};
   if (status) {
     where.status = status;
@@ -103,6 +113,8 @@ const listVideos = async (page = 1, limit = 12, status = null, category = null, 
       { title: { contains: q, mode: 'insensitive' } },
       { description: { contains: q, mode: 'insensitive' } },
       { creator: { fullName: { contains: q, mode: 'insensitive' } } },
+      { creator: { email: { contains: q, mode: 'insensitive' } } },
+      { metadata: { is: { aiSummary: { contains: q, mode: 'insensitive' } } } },
     ];
   }
 
@@ -225,6 +237,12 @@ const updateVideo = async (videoId, userId, userRole, data) => {
     },
   });
 
+  try {
+    await searchService.indexVideoById(videoId);
+  } catch (error) {
+    console.error("[Search] Failed to reindex updated video:", error.message);
+  }
+
   return updatedVideo;
 };
 
@@ -284,6 +302,12 @@ const deleteVideo = async (videoId, userId, userRole) => {
   }
 
   // Xóa record trong Database (Prisma Cascade xóa comments, likes, metadata, ...)
+  try {
+    await searchService.deleteVideoFromIndex(videoId);
+  } catch (error) {
+    console.error("[Search] Failed to delete video from index:", error.message);
+  }
+
   await prisma.video.delete({ where: { id: videoId } });
 };
 

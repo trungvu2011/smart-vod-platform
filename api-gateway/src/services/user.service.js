@@ -1,4 +1,5 @@
 const prisma = require("../config/prisma");
+const searchService = require("./search.service");
 
 /**
  * Lấy lịch sử xem của user hiện tại.
@@ -231,6 +232,14 @@ const updateMe = async (userId, data) => {
       createdAt: true,
     },
   });
+
+  if (fullName !== undefined || avatarUrl !== undefined) {
+    try {
+      await searchService.reindexReadyVideosByCreatorId(userId);
+    } catch (error) {
+      console.error("[Search] Failed to reindex current user's videos:", error.message);
+    }
+  }
 
   return updated;
 };

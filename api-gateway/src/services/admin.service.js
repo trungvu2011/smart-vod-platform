@@ -5,6 +5,7 @@ const prisma = require("../config/prisma");
 const sseManager = require("./sse");
 const redisClient = require("../config/redis");
 const videoQueue = require("../config/queue");
+const searchService = require("./search.service");
 
 const IMPORT_EMAIL_DOMAIN = "waypoint.com";
 const VALID_ROLES = new Set(["USER", "ADMIN"]);
@@ -350,6 +351,15 @@ const updateUser = async (id, data) => {
       status: true, department: true, title: true, avatarUrl: true, createdAt: true,
     },
   });
+
+  if (fullName !== undefined) {
+    try {
+      await searchService.reindexReadyVideosByCreatorId(id);
+    } catch (error) {
+      console.error("[Search] Failed to reindex creator videos:", error.message);
+    }
+  }
+
   return updated;
 };
 
@@ -443,6 +453,12 @@ const approveVideo = async (videoId) => {
   });
 
   try {
+    await searchService.indexVideoById(videoId);
+  } catch (error) {
+    console.error("[Search] Failed to index approved video:", error.message);
+  }
+
+  try {
     const notification = await prisma.notification.create({
       data: {
         userId: updated.creatorId,
@@ -468,6 +484,12 @@ const rejectVideo = async (videoId, reason) => {
     where: { id: videoId },
     data: { status: 'BANNED' }
   });
+
+  try {
+    await searchService.deleteVideoFromIndex(videoId);
+  } catch (error) {
+    console.error("[Search] Failed to delete rejected video from index:", error.message);
+  }
 
   try {
     const notification = await prisma.notification.create({

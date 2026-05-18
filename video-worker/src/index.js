@@ -2,6 +2,7 @@ const { Worker } = require("bullmq");
 const redisConnection = require("./config/redis");
 const { PrismaClient } = require("@prisma/client");
 const processVideo = require("./processors/video.processor");
+const searchService = require("./services/search.service");
 require("dotenv").config();
 
 const prisma = new PrismaClient();
@@ -64,6 +65,14 @@ worker.on("completed", async (job, returnvalue) => {
       `[WORKER] Da cap nhat ${nextStatus} va metadata cho video ${job.data.videoId}.`,
     );
 
+    if (nextStatus === "READY") {
+      try {
+        await searchService.indexVideoById(job.data.videoId);
+      } catch (error) {
+        console.error("[Search] Failed to index completed video:", error.message);
+      }
+    }
+
     if (updatedVideo && updatedVideo.creatorId) {
       const notificationTitle = isMeetingRecording
         ? "Video Processing Complete"
@@ -104,6 +113,12 @@ worker.on("failed", async (job, err) => {
       where: { id: job.data.videoId },
       data: { status: "FAILED" },
     });
+
+    try {
+      await searchService.deleteVideoFromIndex(job.data.videoId);
+    } catch (error) {
+      console.error("[Search] Failed to delete failed video from index:", error.message);
+    }
 
     if (updatedVideo && updatedVideo.creatorId) {
       const notification = await prisma.notification.create({

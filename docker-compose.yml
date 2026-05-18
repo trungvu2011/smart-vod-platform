@@ -49,7 +49,21 @@ services:
     volumes:
       - redisdata:/data
 
-  # 5. LiveKit SFU Server (WebRTC)
+  # 5. Elasticsearch Search Engine
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    mem_limit: 512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    restart: unless-stopped
+
+  # 6. LiveKit SFU Server (WebRTC)
   livekit:
     image: livekit/livekit-server:latest
     command: --config /etc/livekit.yaml
@@ -67,7 +81,7 @@ services:
         restart: true
     restart: unless-stopped
 
-  # 6. LiveKit Egress (Recording service)
+  # 7. LiveKit Egress (Recording service)
   livekit-egress:
     image: livekit/egress:latest
     environment:
@@ -84,3 +98,4 @@ volumes:
   pgdata:
   miniodata:
   redisdata:
+  esdata:
