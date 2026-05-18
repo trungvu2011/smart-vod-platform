@@ -23,6 +23,7 @@ export default function AdminUsersPage() {
   const [editUser, setEditUser] = useState<User | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ user: User; action: 'suspend' | 'activate' } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [createdAccount, setCreatedAccount] = useState<{ username: string; password: string } | null>(null);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -285,10 +286,28 @@ export default function AdminUsersPage() {
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onCreated={(result) => {
-          showToast(`User created! Default password: ${result.defaultPassword}`);
+          setCreatedAccount({
+            username: result.user.email,
+            password: result.defaultPassword,
+          });
+          showToast("User created successfully.");
           fetchUsers();
         }}
         onSubmit={adminApi.createUser}
+      />
+
+      <ConfirmModal
+        open={!!createdAccount}
+        title="New Account Created"
+        message={createdAccount
+          ? `Username: ${createdAccount.username} | Password: ${createdAccount.password}`
+          : ""
+        }
+        confirmText="Close"
+        cancelText="Close"
+        variant="primary"
+        onConfirm={() => setCreatedAccount(null)}
+        onCancel={() => setCreatedAccount(null)}
       />
 
       <EditUserModal

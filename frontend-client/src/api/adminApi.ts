@@ -90,7 +90,7 @@ export const adminApi = {
   getUsers: (params?: { search?: string; department?: string; status?: string; role?: string; page?: number; limit?: number }) =>
     api.get<PaginatedUsers>("/admin/users", { params }).then(res => res.data),
 
-  createUser: (data: { fullName: string; email: string; role?: string; department?: string; title?: string }) =>
+  createUser: (data: { fullName: string; role?: string; department?: string; title?: string }) =>
     api.post<{ message: string; user: User; defaultPassword: string }>("/admin/users", data).then(res => res.data),
 
   updateUser: (id: string, data: { fullName?: string; department?: string; title?: string; role?: string }) =>

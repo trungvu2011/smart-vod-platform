@@ -8,7 +8,7 @@ interface ImportUsersCsvModalProps {
 }
 
 const templateCsv = [
-  "fullName,department,title,role",
+  "Full Name,Department,Job Title,Role",
   "Nguyen Van Anh,Engineering,Developer,USER",
   "Tran Thi Bich,HR,HR Specialist,USER",
 ].join("\n");
@@ -105,13 +105,8 @@ export default function ImportUsersCsvModal({ open, onClose, onImported, onSubmi
         )}
 
         <div className="mb-5 rounded-xl bg-wp-surface-lowest p-4 border border-wp-outline-variant/10">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold text-wp-on-surface mb-1">Required CSV columns</p>
-              <p className="text-xs text-wp-on-surface-variant">
-                fullName is required. Email will be generated as an @waypoint.com account.
-              </p>
-            </div>
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-sm font-semibold text-wp-on-surface">CSV Template</p>
             <button
               type="button"
               onClick={handleDownloadTemplate}
@@ -120,9 +115,6 @@ export default function ImportUsersCsvModal({ open, onClose, onImported, onSubmi
               Template
             </button>
           </div>
-          <pre className="mt-3 overflow-x-auto rounded-lg bg-black/20 p-3 text-xs text-wp-on-surface-variant">
-{templateCsv}
-          </pre>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -137,10 +129,6 @@ export default function ImportUsersCsvModal({ open, onClose, onImported, onSubmi
               className="block w-full text-sm text-wp-on-surface file:mr-4 file:rounded-lg file:border-0 file:bg-wp-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-wp-on-primary hover:file:opacity-90"
             />
           </label>
-
-          <div className="text-xs text-wp-on-surface-variant rounded-xl bg-wp-surface-lowest px-4 py-3">
-            Result CSV will include row status, generated email account, and one-time default password.
-          </div>
 
           <div className="flex gap-3 justify-end pt-2">
             <button

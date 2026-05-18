@@ -4,8 +4,8 @@ const adminService = require("../services/admin.service");
 
 const createUser = async (req, res, next) => {
   try {
-    const { fullName, email, role, department, title } = req.body;
-    const result = await adminService.createUser({ fullName, email, role, department, title });
+    const { fullName, role, department, title } = req.body;
+    const result = await adminService.createUser({ fullName, role, department, title });
     res.status(201).json({
       message: "User created successfully.",
       user: result.user,

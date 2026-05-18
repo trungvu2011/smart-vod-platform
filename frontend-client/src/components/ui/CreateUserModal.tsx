@@ -4,12 +4,11 @@ interface CreateUserModalProps {
   open: boolean;
   onClose: () => void;
   onCreated: (data: { user: any; defaultPassword: string }) => void;
-  onSubmit: (data: { fullName: string; email: string; role: string; department: string; title: string }) => Promise<any>;
+  onSubmit: (data: { fullName: string; role: string; department: string; title: string }) => Promise<any>;
 }
 
 export default function CreateUserModal({ open, onClose, onCreated, onSubmit }: CreateUserModalProps) {
   const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
   const [role, setRole] = useState('USER');
   const [department, setDepartment] = useState('');
   const [title, setTitle] = useState('');
@@ -19,7 +18,7 @@ export default function CreateUserModal({ open, onClose, onCreated, onSubmit }: 
 
   useEffect(() => {
     if (open) {
-      setFullName(''); setEmail(''); setRole('USER');
+      setFullName(''); setRole('USER');
       setDepartment(''); setTitle(''); setError('');
     }
   }, [open]);
@@ -34,14 +33,14 @@ export default function CreateUserModal({ open, onClose, onCreated, onSubmit }: 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName.trim() || !email.trim()) {
-      setError('Full name and email are required.');
+    if (!fullName.trim()) {
+      setError('Full name is required.');
       return;
     }
     setLoading(true);
     setError('');
     try {
-      const result = await onSubmit({ fullName, email, role, department, title });
+      const result = await onSubmit({ fullName, role, department, title });
       onCreated(result);
       onClose();
     } catch (err: any) {
@@ -77,14 +76,6 @@ export default function CreateUserModal({ open, onClose, onCreated, onSubmit }: 
             <input
               type="text" value={fullName} onChange={e => setFullName(e.target.value)}
               placeholder="e.g. Nguyen Van A"
-              className="w-full bg-wp-surface-lowest border-none rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-wp-primary/20 text-wp-on-surface placeholder:text-wp-outline"
-            />
-          </div>
-          <div>
-            <label className="text-[10px] uppercase tracking-widest font-black text-wp-on-surface-variant/50 block mb-1">Email *</label>
-            <input
-              type="email" value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="e.g. user@company.com"
               className="w-full bg-wp-surface-lowest border-none rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-wp-primary/20 text-wp-on-surface placeholder:text-wp-outline"
             />
           </div>

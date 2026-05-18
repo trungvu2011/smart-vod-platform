@@ -11,21 +11,23 @@ const VALID_ROLES = new Set(["USER", "ADMIN"]);
 
 // ─── USER MANAGEMENT ──────────────────────────────────────────────────────────
 
-const createUser = async ({ fullName, email, role, department, title }) => {
-  if (!fullName || !email) {
-    const err = new Error("Vui lòng cung cấp fullName và email!");
+const createUser = async ({ fullName, role, department, title }) => {
+  if (!fullName) {
+    const err = new Error("fullName is required.");
     err.statusCode = 400;
     throw err;
   }
 
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
-    const err = new Error("Email này đã được sử dụng!");
-    err.statusCode = 409;
+  const existingUsers = await prisma.user.findMany({ select: { email: true } });
+  const usedEmails = new Set(existingUsers.map((user) => user.email.toLowerCase()));
+  const email = buildUniqueEmail(fullName, usedEmails);
+  if (!email) {
+    const err = new Error("Cannot generate account email from fullName.");
+    err.statusCode = 400;
     throw err;
   }
 
-  const defaultPassword = crypto.randomBytes(6).toString("hex"); 
+  const defaultPassword = crypto.randomBytes(6).toString("hex");
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(defaultPassword, salt);
 
