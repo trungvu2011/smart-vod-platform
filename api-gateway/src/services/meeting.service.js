@@ -13,7 +13,7 @@ const {
   egressClient,
   apiKey,
   apiSecret,
-  livekitHost,
+  livekitPublicUrl,
 } = require("../config/livekit");
 const videoQueue = require("../config/queue");
 
@@ -291,7 +291,7 @@ const scheduleEgressFinalization = (
 };
 
 const resolveEgressTemplateUrl = () => {
-  const fallbackUrl = "http://host.docker.internal:5173/egress-template";
+  const fallbackUrl = "http://frontend/egress-template";
   const configuredUrl =
     process.env.LIVEKIT_EGRESS_TEMPLATE_URL ||
     `${(process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/+$/, "")}/egress-template`;
@@ -411,7 +411,7 @@ const createRoom = async (
   return {
     room,
     token,
-    serverUrl: livekitHost
+    serverUrl: livekitPublicUrl
       .replace("http://", "ws://")
       .replace("https://", "wss://"),
     notificationCount,
@@ -479,7 +479,7 @@ const joinRoom = async (userId, roomName) => {
 
   return {
     token,
-    serverUrl: livekitHost
+    serverUrl: livekitPublicUrl
       .replace("http://", "ws://")
       .replace("https://", "wss://"),
     room,

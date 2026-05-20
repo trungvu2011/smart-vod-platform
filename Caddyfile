@@ -1,0 +1,31 @@
+{
+	auto_https off
+}
+
+http://app.20.193.248.35.sslip.io {
+	handle /api/* {
+		reverse_proxy api-gateway:5000
+	}
+
+	reverse_proxy frontend:80
+}
+
+http://api.20.193.248.35.sslip.io {
+	reverse_proxy api-gateway:5000
+}
+
+http://media.20.193.248.35.sslip.io {
+	reverse_proxy minio:9000
+}
+
+http://livekit.20.193.248.35.sslip.io {
+	reverse_proxy livekit:7880
+}
+
+http://20.193.248.35 {
+	handle /api/* {
+		reverse_proxy api-gateway:5000
+	}
+
+	reverse_proxy frontend:80
+}

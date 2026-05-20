@@ -1,0 +1,10 @@
+node_modules/
+whisper-env/
+temp/
+
+.env
+.env.*
+!.env.example
+
+*.log
+npm-debug.log*

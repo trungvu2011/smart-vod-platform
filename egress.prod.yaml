@@ -1,0 +1,8 @@
+api_key: devkey
+api_secret: supersecretlivekitkeythatisverylong32chars
+ws_url: ws://livekit:7880
+
+redis:
+  address: redis:6379
+
+log_level: info

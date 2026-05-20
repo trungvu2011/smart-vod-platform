@@ -1,0 +1,7 @@
+node_modules
+whisper-env
+npm-debug.log
+.env
+.env.*
+temp
+__pycache__

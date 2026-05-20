@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { Video as VideoIcon, Plus, AlertCircle } from "lucide-react";
+import { Video as VideoIcon, Plus, AlertCircle, Clock3 } from "lucide-react";
 import VideoCard from "../components/ui/VideoCard";
 import { userApi } from "../api/userApi";
 import { API_BASE_URL } from "../api/axios";
@@ -88,7 +88,7 @@ function ProgressiveVideoCard({
   onComplete: () => void;
 }) {
   const [workerProgress, setWorkerProgress] = useState(0);
-  const [stateStatus, setStateStatus] = useState("pending");
+  const [stateStatus, setStateStatus] = useState("processing");
   const eventSourceRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
@@ -100,16 +100,21 @@ function ProgressiveVideoCard({
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        setWorkerProgress(data.progress || 0);
-        setStateStatus(data.state || "active");
+        if (data.status === "connected" && !data.state) {
+          return;
+        }
 
         if (data.state === "completed") {
+          setWorkerProgress(100);
+          setStateStatus("awaiting_review");
           eventSource.close();
-          // Timeout to show 100% briefly, then refresh the list to render regular VideoCard
-          setTimeout(() => onComplete(), 1000);
         } else if (data.state === "failed") {
+          setStateStatus("failed");
           eventSource.close();
           onComplete(); // refresh to show FAILED card
+        } else {
+          setWorkerProgress(data.progress || 0);
+          setStateStatus(data.state || "processing");
         }
       } catch (e) {
         console.error("SSE parse error", e);
@@ -125,29 +130,50 @@ function ProgressiveVideoCard({
     };
   }, [video.id, onComplete]);
 
+  const waitingApproval = stateStatus === "awaiting_review";
+
   return (
-    <div className="block max-w-full opacity-80 cursor-wait">
+    <div className={`block max-w-full ${waitingApproval ? "opacity-95" : "opacity-80 cursor-wait"}`}>
       <div className="relative aspect-video rounded-wp-lg overflow-hidden bg-wp-surface-container-high mb-3 flex flex-col items-center justify-center p-4">
-         <p className="text-wp-tertiary animate-pulse mb-3 uppercase tracking-widest text-[10px] font-bold">
-           {stateStatus === "pending" || stateStatus === "active" ? "Processing in background..." : "Finishing up"}
-         </p>
-         <div className="w-full h-1.5 bg-wp-surface-highest rounded-full overflow-hidden">
-            <div
-              className="h-full bg-wp-tertiary transition-all duration-300 shadow-wp-glow shadow-wp-tertiary/20"
-              style={{ width: `${Math.min(workerProgress, 100)}%` }}
-            />
-         </div>
-         <p className="mt-2 text-[10px] text-wp-on-surface-variant font-medium">
-             {Math.round(workerProgress)}% complete
-         </p>
+        {waitingApproval ? (
+          <>
+            <p className="text-amber-300 mb-3 uppercase tracking-widest text-[10px] font-bold flex items-center gap-1.5">
+              <Clock3 size={12} /> Waiting for admin approval
+            </p>
+            <div className="w-full h-1.5 bg-wp-surface-highest rounded-full overflow-hidden">
+              <div
+                className="h-full bg-amber-300/80 transition-all duration-300"
+                style={{ width: "100%" }}
+              />
+            </div>
+            <p className="mt-2 text-[10px] text-wp-on-surface-variant font-medium">
+              Processing complete. Pending moderation.
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="text-wp-tertiary animate-pulse mb-3 uppercase tracking-widest text-[10px] font-bold">
+              Processing in background...
+            </p>
+            <div className="w-full h-1.5 bg-wp-surface-highest rounded-full overflow-hidden">
+              <div
+                className="h-full bg-wp-tertiary transition-all duration-300 shadow-wp-glow shadow-wp-tertiary/20"
+                style={{ width: `${Math.min(workerProgress, 100)}%` }}
+              />
+            </div>
+            <p className="mt-2 text-[10px] text-wp-on-surface-variant font-medium">
+              {Math.round(workerProgress)}% complete
+            </p>
+          </>
+        )}
       </div>
       <div className="flex gap-3">
         <div className="min-w-0">
           <h3 className="text-sm font-medium text-wp-on-surface leading-snug line-clamp-2">
             {video.title}
           </h3>
-          <p className="text-xs text-wp-on-surface-variant mt-1 text-wp-tertiary">
-            Generating HLS & AI Summary
+          <p className={`text-xs mt-1 ${waitingApproval ? "text-amber-300" : "text-wp-on-surface-variant text-wp-tertiary"}`}>
+            {waitingApproval ? "Waiting for admin moderation" : "Generating HLS & AI Summary"}
           </p>
         </div>
       </div>

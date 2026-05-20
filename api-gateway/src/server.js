@@ -38,6 +38,10 @@ const userRoutes = require("./routes/user.routes");
 const playlistRoutes = require("./routes/playlist.routes");
 const meetingRoutes = require("./routes/meeting.routes");
 
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/videos", videoRoutes);

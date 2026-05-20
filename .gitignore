@@ -1,22 +1,35 @@
-# Bỏ qua thư viện Node.js
+# Node dependencies
 node_modules/
-api-gateway/node_modules/
-video-worker/node_modules/
+**/node_modules/
 
-# Bỏ qua các file cấu hình chứa mật khẩu nhạy cảm
+# Environment / secrets
 .env
-api-gateway/.env
-video-worker/.env
+.env.*
+!.env.example
+!.env.azure.example
+.env.prod
 
-# Bỏ qua file log
+# Logs
 *.log
 npm-debug.log*
-video-worker/temp/
-my-api-test
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-# --- AI & Temp Files ---
-whisper-env/
+# Runtime/temp artifacts
 temp/
-audio.mp3
-audio.vtt
-*.mp4
+video-worker/temp/
+video-worker/whisper-env/
+
+# Local utility workspace
+my-api-test/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local keys/certs
+*.pem
+*.key

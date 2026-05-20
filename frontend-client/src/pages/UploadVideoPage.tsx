@@ -139,9 +139,10 @@ export default function UploadVideoPage() {
             setWorkerProgress(data.progress || 0);
 
             if (data.state === 'completed') {
+              setWorkerProgress(100);
               setUploadState('done');
               eventSource.close();
-              setTimeout(() => navigate('/dashboard'), 2000);
+              setTimeout(() => navigate('/my-videos'), 2000);
             } else if (data.state === 'failed') {
               setUploadState('error');
               eventSource.close();
@@ -158,7 +159,7 @@ export default function UploadVideoPage() {
         };
       } else {
         setUploadState('done');
-        setTimeout(() => navigate('/dashboard'), 2000);
+        setTimeout(() => navigate('/my-videos'), 2000);
       }
     } catch (error) {
       console.error(error);
@@ -261,7 +262,7 @@ export default function UploadVideoPage() {
 
               {uploadState === 'done' && (
                 <p className="text-xs text-green-400 font-semibold flex items-center gap-1.5">
-                  <CheckCircle size={14} /> Upload complete - redirecting to dashboard.
+                  <CheckCircle size={14} /> Processing complete. Waiting for admin approval.
                 </p>
               )}
               {uploadState === 'error' && (

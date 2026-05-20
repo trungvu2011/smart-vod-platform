@@ -1,0 +1,209 @@
+services:
+  frontend:
+    image: ghcr.io/${GHCR_OWNER}/${FRONTEND_IMAGE}:${IMAGE_TAG:-latest}
+    container_name: smartvod-frontend
+    restart: unless-stopped
+
+  api-gateway:
+    image: ghcr.io/${GHCR_OWNER}/${API_IMAGE}:${IMAGE_TAG:-latest}
+    container_name: smartvod-api
+    restart: unless-stopped
+    environment:
+      PORT: 5000
+      FRONTEND_URL: http://${APP_HOST}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      MINIO_PUBLIC_URL: http://${MEDIA_HOST}
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME}
+      MINIO_EGRESS_ENDPOINT: http://minio:9000
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      ELASTICSEARCH_ENABLED: ${ELASTICSEARCH_ENABLED:-true}
+      ELASTICSEARCH_INDEX_VIDEOS: ${ELASTICSEARCH_INDEX_VIDEOS:-videos}
+      LIVEKIT_INTERNAL_HOST: http://livekit:7880
+      LIVEKIT_PUBLIC_URL: http://${LIVEKIT_HOST}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
+      LIVEKIT_EGRESS_TEMPLATE_URL: http://${APP_HOST}/egress-template
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      elasticsearch:
+        condition: service_started
+      livekit:
+        condition: service_started
+
+  video-worker:
+    image: ghcr.io/${GHCR_OWNER}/${WORKER_IMAGE}:${IMAGE_TAG:-latest}
+    container_name: smartvod-worker
+    restart: unless-stopped
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      MINIO_PUBLIC_URL: http://${MEDIA_HOST}
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      ELASTICSEARCH_ENABLED: ${ELASTICSEARCH_ENABLED:-true}
+      ELASTICSEARCH_INDEX_VIDEOS: ${ELASTICSEARCH_INDEX_VIDEOS:-videos}
+      WHISPER_EXECUTABLE: /app/whisper-env/bin/whisper
+      WHISPER_MODEL: ${WHISPER_MODEL:-small}
+      WHISPER_LANGUAGE: ${WHISPER_LANGUAGE:-vi}
+      AI_WHISPER_ENABLED: ${AI_WHISPER_ENABLED:-true}
+      AI_REQUIRED: ${AI_REQUIRED:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      elasticsearch:
+        condition: service_started
+
+  caddy:
+    image: caddy:2.9-alpine
+    container_name: smartvod-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL}
+      APP_HOST: ${APP_HOST}
+      API_HOST: ${API_HOST}
+      MEDIA_HOST: ${MEDIA_HOST}
+      LIVEKIT_HOST: ${LIVEKIT_HOST}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - api-gateway
+      - minio
+      - livekit
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: smartvod-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: smartvod-redis
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - redisdata:/data
+
+  minio:
+    image: minio/minio:latest
+    container_name: smartvod-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - miniodata:/data
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: smartvod-minio-init
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD}; do sleep 2; done &&
+      mc mb -p local/${MINIO_BUCKET_NAME} || true &&
+      mc anonymous set download local/${MINIO_BUCKET_NAME} &&
+      mc cors set local/${MINIO_BUCKET_NAME} /etc/minio/cors.json
+      "
+    volumes:
+      - ./minio-cors.json:/etc/minio/cors.json:ro
+    restart: "no"
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    container_name: smartvod-elasticsearch
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    mem_limit: 1g
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: smartvod-livekit
+    restart: unless-stopped
+    command: --config /etc/livekit.yaml
+    ports:
+      - "7881:7881/tcp"
+      - "7882:7882/udp"
+      - "3478:3478/tcp"
+      - "3478:3478/udp"
+    volumes:
+      - ./livekit.prod.yaml:/etc/livekit.yaml:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  livekit-egress:
+    image: livekit/egress:latest
+    container_name: smartvod-livekit-egress
+    restart: unless-stopped
+    environment:
+      EGRESS_CONFIG_FILE: /etc/egress.yaml
+    volumes:
+      - ./egress.prod.yaml:/etc/egress.yaml:ro
+    depends_on:
+      - livekit
+      - minio
+    cap_add:
+      - SYS_ADMIN
+
+volumes:
+  caddy_data:
+  caddy_config:
+  pgdata:
+  redisdata:
+  miniodata:
+  esdata:

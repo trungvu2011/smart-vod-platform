@@ -29,6 +29,7 @@ export const videoApi = {
     const res = await api.post('/videos/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       onUploadProgress,
+      timeout: 0,
     });
     return res.data;
   },
