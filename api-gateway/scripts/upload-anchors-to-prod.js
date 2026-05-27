@@ -4,7 +4,8 @@
  *
  * Cách chạy:
  *   node scripts/upload-anchors-to-prod.js
- *   node scripts/upload-anchors-to-prod.js --api=http://api.20.193.248.35.sslip.io
+ *   API_HOST=api.example.com node scripts/upload-anchors-to-prod.js
+ *   node scripts/upload-anchors-to-prod.js --api=https://api.example.com
  *   node scripts/upload-anchors-to-prod.js --api=http://localhost:5000
  */
 
@@ -15,7 +16,8 @@ const http = require("http");
 
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
 
-const DEFAULT_API_BASE = "http://api.20.193.248.35.sslip.io";
+const DEFAULT_API_BASE = process.env.API_BASE_URL ||
+  (process.env.API_HOST ? `https://${process.env.API_HOST}` : "http://localhost:5000");
 const LOGIN_EMAIL = "demo.admin@waypoint.com";
 const LOGIN_PASSWORD = "Demo@123456";
 

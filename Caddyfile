@@ -1,8 +1,8 @@
 {
-	auto_https off
+	email {$ACME_EMAIL}
 }
 
-http://app.20.193.248.35.sslip.io {
+{$APP_HOST} {
 	handle /api/* {
 		reverse_proxy api-gateway:5000
 	}
@@ -10,22 +10,14 @@ http://app.20.193.248.35.sslip.io {
 	reverse_proxy frontend:80
 }
 
-http://api.20.193.248.35.sslip.io {
+{$API_HOST} {
 	reverse_proxy api-gateway:5000
 }
 
-http://media.20.193.248.35.sslip.io {
+{$MEDIA_HOST} {
 	reverse_proxy minio:9000
 }
 
-http://livekit.20.193.248.35.sslip.io {
+{$LIVEKIT_HOST} {
 	reverse_proxy livekit:7880
-}
-
-http://20.193.248.35 {
-	handle /api/* {
-		reverse_proxy api-gateway:5000
-	}
-
-	reverse_proxy frontend:80
 }

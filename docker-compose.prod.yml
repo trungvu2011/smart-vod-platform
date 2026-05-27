@@ -10,13 +10,13 @@ services:
     restart: unless-stopped
     environment:
       PORT: 5000
-      FRONTEND_URL: http://${APP_HOST}
+      FRONTEND_URL: https://${APP_HOST}
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
       JWT_SECRET: ${JWT_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
-      MINIO_PUBLIC_URL: http://${MEDIA_HOST}
+      MINIO_PUBLIC_URL: https://${MEDIA_HOST}
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
@@ -31,10 +31,10 @@ services:
       ELASTICSEARCH_ENABLED: ${ELASTICSEARCH_ENABLED:-true}
       ELASTICSEARCH_INDEX_VIDEOS: ${ELASTICSEARCH_INDEX_VIDEOS:-videos}
       LIVEKIT_INTERNAL_HOST: http://livekit:7880
-      LIVEKIT_PUBLIC_URL: http://${LIVEKIT_HOST}
+      LIVEKIT_PUBLIC_URL: wss://${LIVEKIT_HOST}
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
-      LIVEKIT_EGRESS_TEMPLATE_URL: http://${APP_HOST}/egress-template
+      LIVEKIT_EGRESS_TEMPLATE_URL: https://${APP_HOST}/egress-template
     depends_on:
       postgres:
         condition: service_healthy
@@ -54,7 +54,7 @@ services:
     environment:
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      MINIO_PUBLIC_URL: http://${MEDIA_HOST}
+      MINIO_PUBLIC_URL: https://${MEDIA_HOST}
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
