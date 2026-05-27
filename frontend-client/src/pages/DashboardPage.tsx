@@ -6,6 +6,7 @@ import PlaylistCard from '../components/ui/PlaylistCard';
 import { videoApi } from '../api/videoApi';
 import { userApi } from '../api/userApi';
 import { playlistApi } from '../api/playlistApi';
+import { getPlaylistProgress } from '../utils/playlistProgress';
 import type { Video, HistoryItem, Playlist } from '../types';
 
 function formatDuration(seconds: number = 0): string {
@@ -185,9 +186,12 @@ export default function DashboardPage() {
             </Link>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {playlists.slice(0, 3).map((pl) => (
-              <PlaylistCard key={pl.id} playlist={pl} progress={pl.isPrivate ? undefined : 35} />
-            ))}
+            {playlists.slice(0, 3).map((playlist) => {
+              const { progress } = getPlaylistProgress(playlist, history);
+              return (
+                <PlaylistCard key={playlist.id} playlist={playlist} progress={progress} />
+              );
+            })}
           </div>
         </section>
       )}

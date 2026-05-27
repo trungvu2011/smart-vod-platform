@@ -61,6 +61,7 @@ export interface Playlist {
   name: string;
   isPrivate: boolean;
   createdAt: string;
+  coverThumbnailUrl?: string | null;
   _count?: { items: number };
   items?: PlaylistItem[];
   user?: {

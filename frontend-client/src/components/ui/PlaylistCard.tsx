@@ -17,6 +17,7 @@ export default function PlaylistCard({ playlist, progress }: PlaylistCardProps) 
   const itemCount = playlist._count?.items ?? playlist.items?.length ?? 0;
   const hasProgress = progress !== undefined && progress > 0;
   const isCompleted = (progress ?? 0) >= 100;
+  const coverImage = playlist.coverThumbnailUrl || playlist.items?.find((item) => item.video?.thumbnailUrl)?.video?.thumbnailUrl;
 
   const ctaLabel = isCompleted
     ? 'Review Playlist'
@@ -41,8 +42,19 @@ export default function PlaylistCard({ playlist, progress }: PlaylistCardProps) 
         hover:scale-[1.02] transition-all duration-300 flex flex-col h-full shadow-lg"
     >
       {/* Cover / thumbnail */}
-      <div className={`relative aspect-video bg-gradient-to-br ${gradient} overflow-hidden flex items-center justify-center`}>
-        <BookOpen size={48} className="text-white/30 group-hover:scale-110 transition-transform duration-500" />
+      <div className={`relative aspect-video ${coverImage ? 'bg-wp-surface-container-high' : `bg-gradient-to-br ${gradient}`} overflow-hidden flex items-center justify-center`}>
+        {coverImage ? (
+          <>
+            <img
+              src={coverImage}
+              alt={playlist.name}
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent" />
+          </>
+        ) : (
+          <BookOpen size={48} className="text-white/30 group-hover:scale-110 transition-transform duration-500" />
+        )}
 
         {/* Private badge */}
         {playlist.isPrivate && (

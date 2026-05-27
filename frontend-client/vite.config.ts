@@ -9,5 +9,13 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     allowedHosts: ['host.docker.internal'],
+    proxy: {
+      // Dev-only: route API calls to local API Gateway
+      // so frontend can keep using relative `/api/...` URLs.
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
+    },
   },
 })

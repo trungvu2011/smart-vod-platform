@@ -1,25 +1,30 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Play, Plus, BookOpen, Lock, Globe,
+  Play, Plus, BookOpen, Globe,
   GraduationCap, Video as VideoIcon
 } from 'lucide-react';
 import PlaylistCard from '../components/ui/PlaylistCard';
 import CreatePlaylistModal from '../components/ui/CreatePlaylistModal';
 import { playlistApi } from '../api/playlistApi';
+import { userApi } from '../api/userApi';
+import { getPlaylistProgress } from '../utils/playlistProgress';
 
-import type { Playlist } from '../types';
+import type { Playlist, HistoryItem } from '../types';
 
 export default function MyCoursesPage() {
-
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   const fetchPlaylists = () => {
     setLoading(true);
-    playlistApi.getMyPlaylists()
-      .then(setPlaylists)
+    Promise.all([playlistApi.getMyPlaylists(), userApi.getHistory()])
+      .then(([playlistsData, historyData]) => {
+        setPlaylists(playlistsData);
+        setHistory(historyData);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   };
@@ -28,17 +33,18 @@ export default function MyCoursesPage() {
     fetchPlaylists();
   }, []);
 
-  // ── Playlists I created ────────────────────────────────────────────────────
-  const myCreated = playlists; // getMyPlaylists already returns only mine
+  const myCreated = playlists;
+  const publicPlaylists = myCreated.filter((playlist) => !playlist.isPrivate);
 
-  // Separate created → public vs private
-  const publicPlaylists = myCreated.filter((p) => !p.isPrivate);
-  const privatePlaylists = myCreated.filter((p) => p.isPrivate);
-
-  // ── "In-progress" simulation: playlists with at least 1 video ─────────────
-  // In a real app this would come from a WatchHistory API.
-  // For now we highlight playlists that have items, showing a mock progress.
-  const inProgress = myCreated.filter((p) => (p._count?.items ?? 0) > 0).slice(0, 4);
+  const playlistProgress = new Map(
+    myCreated.map((playlist) => [playlist.id, getPlaylistProgress(playlist, history)]),
+  );
+  const inProgress = myCreated
+    .filter((playlist) => {
+      const summary = playlistProgress.get(playlist.id);
+      return summary !== undefined && summary.progress > 0 && summary.progress < 100;
+    })
+    .slice(0, 4);
 
   const heroPlaylist = myCreated[0];
 
@@ -47,8 +53,8 @@ export default function MyCoursesPage() {
       <div className="space-y-6 animate-pulse">
         <div className="h-[200px] bg-wp-surface-container-low rounded-2xl" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-wp-surface-container-low rounded-xl overflow-hidden">
+          {[...Array(4)].map((_, index) => (
+            <div key={index} className="bg-wp-surface-container-low rounded-xl overflow-hidden">
               <div className="aspect-video bg-wp-surface-container-high" />
               <div className="p-4 space-y-2">
                 <div className="h-4 bg-wp-surface-container-high rounded w-3/4" />
@@ -63,8 +69,6 @@ export default function MyCoursesPage() {
 
   return (
     <div className="space-y-12 animate-slide-up">
-
-      {/* ── Hero Banner ── */}
       {heroPlaylist ? (
         <section className="relative rounded-wp-xl overflow-hidden h-[240px] group">
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-800 via-purple-900 to-wp-surface" />
@@ -100,7 +104,6 @@ export default function MyCoursesPage() {
           </div>
         </section>
       ) : (
-        /* Empty hero — no playlists at all */
         <section className="relative rounded-wp-xl overflow-hidden border border-dashed border-wp-outline/20">
           <div className="p-12 flex flex-col items-center text-center gap-4">
             <div className="w-16 h-16 bg-wp-surface-container-high rounded-2xl flex items-center justify-center">
@@ -122,23 +125,25 @@ export default function MyCoursesPage() {
         </section>
       )}
 
-      {/* ── In Progress ── */}
       {inProgress.length > 0 && (
         <section>
           <SectionHeader
             icon={<Play size={18} className="fill-current text-wp-tertiary" />}
             title="Continue Learning"
-            subtitle="Playlists you've started — pick up where you left off"
+            subtitle="Playlists you've started - pick up where you left off"
           />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 mt-5">
-            {inProgress.map((pl) => (
-              <PlaylistCard key={pl.id} playlist={pl} progress={35} />
+            {inProgress.map((playlist) => (
+              <PlaylistCard
+                key={playlist.id}
+                playlist={playlist}
+                progress={playlistProgress.get(playlist.id)?.progress ?? 0}
+              />
             ))}
           </div>
         </section>
       )}
 
-      {/* ── My Public Playlists ── */}
       <section>
         <div className="flex items-center justify-between mb-5">
           <SectionHeader
@@ -157,65 +162,42 @@ export default function MyCoursesPage() {
 
         {publicPlaylists.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {publicPlaylists.map((pl) => (
-              <PlaylistCard key={pl.id} playlist={pl} progress={35} />
+            {publicPlaylists.map((playlist) => (
+              <PlaylistCard
+                key={playlist.id}
+                playlist={playlist}
+                progress={playlistProgress.get(playlist.id)?.progress ?? 0}
+              />
             ))}
           </div>
         ) : (
           <EmptyState
             icon={<Globe size={36} className="text-wp-outline opacity-50" />}
             label="You haven't created any public playlists yet."
-            action={
+            action={(
               <button
                 onClick={() => setIsCreateOpen(true)}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-wp-primary bg-wp-primary/10 hover:bg-wp-primary/20 border border-wp-primary/20 rounded-xl transition-colors"
               >
                 <Plus size={14} /> Create one now
               </button>
-            }
+            )}
           />
         )}
       </section>
 
-      {/* ── My Private Playlists ── */}
-      <section>
-        <div className="flex items-center justify-between mb-5">
-          <SectionHeader
-            icon={<Lock size={18} className="text-wp-outline" />}
-            title="My Private Playlists"
-            subtitle="Only you can see these"
-            inline
-          />
-        </div>
-
-        {privatePlaylists.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {privatePlaylists.map((pl) => (
-              <PlaylistCard key={pl.id} playlist={pl} />
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            icon={<Lock size={36} className="text-wp-outline opacity-50" />}
-            label="No private playlists. Create one to organize content just for yourself."
-          />
-        )}
-      </section>
-
-      {/* ── Stats footer ── */}
       {myCreated.length > 0 && (
         <div className="glass ghost-border rounded-2xl p-6 grid grid-cols-3 divide-x divide-wp-outline/10">
           <Stat label="Total Playlists" value={myCreated.length} icon={<BookOpen size={18} />} />
           <Stat
             label="Total Videos"
-            value={myCreated.reduce((acc, p) => acc + (p._count?.items ?? 0), 0)}
+            value={myCreated.reduce((acc, playlist) => acc + (playlist._count?.items ?? 0), 0)}
             icon={<VideoIcon size={18} />}
           />
           <Stat label="Public" value={publicPlaylists.length} icon={<Globe size={18} />} />
         </div>
       )}
 
-      {/* ── Create Modal ── */}
       {isCreateOpen && (
         <CreatePlaylistModal
           onClose={() => setIsCreateOpen(false)}
@@ -226,7 +208,6 @@ export default function MyCoursesPage() {
   );
 }
 
-/* ── Helper Sub-components ──────────────────────────────────────────────────── */
 function SectionHeader({
   icon, title, subtitle, inline = false,
 }: {
@@ -245,6 +226,7 @@ function SectionHeader({
       </div>
     );
   }
+
   return (
     <div className="mb-5">
       <h2 className="text-lg font-semibold text-wp-on-surface flex items-center gap-2">

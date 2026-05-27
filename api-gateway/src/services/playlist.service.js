@@ -1,6 +1,14 @@
 const prisma = require("../config/prisma");
 const sseManager = require("./sse");
 
+const attachCoverThumbnail = (playlist) => ({
+  ...playlist,
+  coverThumbnailUrl:
+    playlist.coverThumbnailUrl
+    || playlist.items?.find((item) => item.video?.thumbnailUrl)?.video?.thumbnailUrl
+    || null,
+});
+
 // ─── Existing ────────────────────────────────────────────────────────────────
 
 const createPlaylist = async (userId, name, isPrivate = false) => {
@@ -11,14 +19,38 @@ const createPlaylist = async (userId, name, isPrivate = false) => {
 };
 
 const getUserPlaylists = async (userId) => {
-  return await prisma.playlist.findMany({
+  const playlists = await prisma.playlist.findMany({
     where: { userId },
     include: {
       _count: { select: { items: true } },
-      items: { select: { videoId: true } },
+      items: {
+        select: {
+          playlistId: true,
+          videoId: true,
+          order: true,
+          addedAt: true,
+          video: {
+            select: {
+              id: true,
+              title: true,
+              thumbnailUrl: true,
+              status: true,
+              viewCount: true,
+              createdAt: true,
+              category: true,
+              visibility: true,
+              creator: { select: { id: true, fullName: true, avatarUrl: true } },
+              metadata: { select: { duration: true, hlsMasterUrl: true, subtitleUrl: true } },
+              _count: { select: { likes: true, comments: true } },
+            },
+          },
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
   });
+
+  return playlists.map(attachCoverThumbnail);
 };
 
 // ─── NEW: GET /api/playlists/public ──────────────────────────────────────────
@@ -44,13 +76,24 @@ const listPublicPlaylists = async ({ page = 1, limit = 24, q = null } = {}) => {
       include: {
         _count: { select: { items: true } },
         user: { select: { id: true, fullName: true, avatarUrl: true } },
+        items: {
+          take: 1,
+          orderBy: { order: "asc" },
+          select: {
+            video: {
+              select: {
+                thumbnailUrl: true,
+              },
+            },
+          },
+        },
       },
     }),
     prisma.playlist.count({ where }),
   ]);
 
   return {
-    playlists,
+    playlists: playlists.map(attachCoverThumbnail),
     pagination: {
       page,
       limit,
@@ -161,7 +204,7 @@ const getPlaylistById = async (userId, playlistId) => {
     throw err;
   }
 
-  return playlist;
+  return attachCoverThumbnail(playlist);
 };
 
 // ─── NEW: PUT /api/playlists/:id ─────────────────────────────────────────────

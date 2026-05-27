@@ -9,7 +9,8 @@ import { userApi } from '../api/userApi';
 import SelectVideosModal from '../components/ui/SelectVideosModal';
 import UserAvatar from '../components/ui/UserAvatar';
 import { useAuthStore } from '../store/useAuthStore';
-import type { Playlist, Video, HistoryItem } from '../types';
+import { getPlaylistProgress } from '../utils/playlistProgress';
+import type { Playlist, HistoryItem } from '../types';
 
 function formatDuration(seconds: number): string {
   if (!seconds) return "0m";
@@ -60,29 +61,8 @@ export default function CourseDetailPage() {
     return <div className="p-10 text-center text-wp-on-surface-variant">Learning path not found.</div>;
   }
 
-  // Videos derived from playlist items
-  const videos: Video[] = (playlist.items || [])
-    .sort((a, b) => a.order - b.order)
-    .map((item) => item.video)
-    .filter((v): v is Video => !!v);
-
+  const { videos, completedCount, progress, activeVideoIndex } = getPlaylistProgress(playlist, history);
   const totalDuration = videos.reduce((acc, v) => acc + (v.metadata?.duration ?? 0), 0);
-
-  // Calculate actual progress from WatchHistory
-  let completedCount = 0;
-  for (const v of videos) {
-    const h = history.find(item => item.videoId === v.id);
-    const dur = v.metadata?.duration ?? 0;
-    const isCompleted = h && dur > 0 ? (h.lastSecond / dur) >= 0.95 : false;
-    if (isCompleted) {
-      completedCount++;
-    } else {
-      break;
-    }
-  }
-  
-  const progress = videos.length > 0 ? Math.round((completedCount / videos.length) * 100) : 0;
-  const activeVideoIndex = completedCount < videos.length ? completedCount : 0;
 
   return (
     <div className="animate-slide-up -my-6 -mx-6 lg:-mx-8 lg:-mt-8">

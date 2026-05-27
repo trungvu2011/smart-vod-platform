@@ -30,7 +30,10 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const requestUrl = String(error.config?.url || "");
+    const isLoginRequest = requestUrl.includes("/auth/login");
+
+    if (error.response?.status === 401 && !isLoginRequest) {
       localStorage.removeItem('wp_token');
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';

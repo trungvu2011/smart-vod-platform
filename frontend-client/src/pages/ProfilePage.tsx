@@ -151,7 +151,17 @@ export default function ProfilePage() {
             ) : (
               playlists.slice(0, 3).map((pl) => (
                 <Link key={pl.id} to={`/playlists/${pl.id}`} className="group relative aspect-video rounded-3xl overflow-hidden cursor-pointer block">
-                  <div className="absolute inset-0 bg-gradient-to-br from-indigo-800 via-purple-800 to-wp-surface" />
+                  {pl.coverThumbnailUrl ? (
+                    <>
+                      <img
+                        src={pl.coverThumbnailUrl}
+                        alt={pl.name}
+                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    </>
+                  ) : (
+                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-800 via-purple-800 to-wp-surface" />
+                  )}
                   <div className="absolute inset-0 bg-gradient-to-t from-wp-surface/90 via-wp-surface/40 to-transparent z-10" />
                   <div className="absolute inset-0 p-6 flex flex-col justify-end z-20">
                     <div className="glass rounded-2xl p-4 ghost-border">
