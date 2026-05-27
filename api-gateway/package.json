@@ -6,6 +6,10 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
+    "seed:demo": "node scripts/seed-demo-content.js",
+    "seed:youtube": "node scripts/seed-youtube-metadata.js",
+    "seed:youtube:clean": "node scripts/seed-youtube-metadata.js --clean",
+    "seed:master": "node scripts/seed-master.js",
     "search:reindex": "node scripts/reindex-videos.js"
   },
   "keywords": [],
