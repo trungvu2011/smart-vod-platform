@@ -3,9 +3,9 @@ const crypto = require("crypto");
 const { parse } = require("csv-parse/sync");
 const prisma = require("../config/prisma");
 const sseManager = require("./sse");
-const redisClient = require("../config/redis");
 const videoQueue = require("../config/queue");
 const searchService = require("./search.service");
+const { getSystemHealth } = require("./system-health.service");
 
 const IMPORT_EMAIL_DOMAIN = "waypoint.com";
 const VALID_ROLES = new Set(["USER", "ADMIN"]);
@@ -693,34 +693,7 @@ const getAnalyticsMetrics = async () => {
     console.error("[Queue Error]", err.message);
   }
 
-  // System health
-  let systemHealth = {
-    database: 'UNKNOWN',
-    redis: 'UNKNOWN',
-    queue: 'UNKNOWN',
-  };
-
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    systemHealth.database = 'OPERATIONAL';
-  } catch {
-    systemHealth.database = 'DOWN';
-  }
-
-  try {
-    await redisClient.ping();
-    systemHealth.redis = 'OPERATIONAL';
-  } catch {
-    systemHealth.redis = 'DOWN';
-  }
-
-  try {
-    const queueCounts = await videoQueue.getJobCounts();
-    systemHealth.queue = 'OPERATIONAL';
-    systemHealth.queueCounts = queueCounts;
-  } catch {
-    systemHealth.queue = 'DOWN';
-  }
+  const systemHealth = await getSystemHealth();
 
   // Storage estimate from DB
   const totalVideoCount = await prisma.video.count();

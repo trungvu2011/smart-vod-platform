@@ -6,8 +6,32 @@ const searchService = require("./services/search.service");
 require("dotenv").config();
 
 const prisma = new PrismaClient();
+const WORKER_HEARTBEAT_KEY = "worker:video:heartbeat";
+const WORKER_HEARTBEAT_TTL_SECONDS = 45;
+const WORKER_HEARTBEAT_INTERVAL_MS = 15000;
 
 console.log("[WORKER] Khoi dong video-worker...");
+
+const writeHeartbeat = async () => {
+  try {
+    await redisConnection.set(
+      WORKER_HEARTBEAT_KEY,
+      JSON.stringify({
+        status: "OPERATIONAL",
+        checkedAt: new Date().toISOString(),
+        pid: process.pid,
+        uptimeSeconds: Math.floor(process.uptime()),
+      }),
+      "EX",
+      WORKER_HEARTBEAT_TTL_SECONDS,
+    );
+  } catch (error) {
+    console.error("[WORKER] Khong the ghi heartbeat:", error.message);
+  }
+};
+
+writeHeartbeat();
+setInterval(writeHeartbeat, WORKER_HEARTBEAT_INTERVAL_MS);
 
 const worker = new Worker(
   "video-jobs",

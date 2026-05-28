@@ -46,6 +46,10 @@ services:
         condition: service_started
       livekit:
         condition: service_started
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host/root:ro
 
   video-worker:
     image: ghcr.io/${GHCR_OWNER}/${WORKER_IMAGE}:${IMAGE_TAG:-latest}

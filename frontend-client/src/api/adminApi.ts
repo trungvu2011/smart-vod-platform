@@ -46,22 +46,64 @@ export interface AnalyticsMetrics {
   videosByCategory: { category: string; count: number; totalViews: number }[];
   viewsTimeline: DailyCount[];
   transcodingJobs: TranscodingJob[];
-  systemHealth: {
-    database: string;
-    redis: string;
-    queue: string;
-    queueCounts?: {
-      active: number;
-      waiting: number;
-      completed: number;
-      failed: number;
-      delayed: number;
-    };
-  };
+  systemHealth: SystemHealth;
   storageEstimate: {
     totalVideos: number;
     processedVideos: number;
   };
+}
+
+export type HealthStatus = 'OPERATIONAL' | 'DEGRADED' | 'DOWN' | 'UNKNOWN' | 'DISABLED';
+
+export interface QueueCounts {
+  active: number;
+  waiting: number;
+  completed: number;
+  failed: number;
+  delayed: number;
+}
+
+export interface SystemServiceHealth {
+  name: string;
+  status: HealthStatus;
+  latencyMs?: number | null;
+  checkedAt: string;
+  details?: Record<string, unknown>;
+  message?: string | null;
+}
+
+export interface SystemHostHealth {
+  status: HealthStatus;
+  unavailableReason?: string;
+  cpu?: { usedPercent: number | null };
+  memory?: {
+    totalMb: number;
+    usedMb: number;
+    availableMb: number;
+    usedPercent: number | null;
+  };
+  disk?: {
+    totalGb?: number;
+    usedGb?: number;
+    availableGb?: number;
+    usedPercent?: number;
+    mount?: string;
+    unavailableReason?: string;
+  };
+  uptimeSeconds?: number;
+  loadAverage?: number[];
+}
+
+export interface SystemHealth {
+  overallStatus: HealthStatus;
+  checkedAt: string;
+  host: SystemHostHealth;
+  services: Record<string, SystemServiceHealth>;
+  alerts: { level: 'critical' | 'warning'; message: string }[];
+  database: HealthStatus;
+  redis: HealthStatus;
+  queue: HealthStatus;
+  queueCounts?: QueueCounts;
 }
 
 export interface TranscodingJob {
