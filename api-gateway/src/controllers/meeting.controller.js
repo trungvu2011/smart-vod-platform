@@ -10,13 +10,14 @@ const apiSecret = process.env.LIVEKIT_API_SECRET || "secret";
 const createRoom = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { displayName, maxParticipants, invitedDepartments } = req.body;
+    const { displayName, maxParticipants, invitedDepartments, invitedUserIds } = req.body;
 
     const result = await meetingService.createRoom(
       userId,
       displayName,
       maxParticipants,
-      invitedDepartments
+      invitedDepartments,
+      invitedUserIds
     );
 
     res.status(201).json({

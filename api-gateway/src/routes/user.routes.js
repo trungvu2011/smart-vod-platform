@@ -6,6 +6,7 @@ const {
   getLikedVideos,
   getNotifications,
   getDepartments,
+  getDepartmentMembers,
   streamNotifications,
   getActivities,
   getSessions,
@@ -43,6 +44,7 @@ router.get("/notifications", getNotifications);
 router.post("/notifications/read-all", markAllNotificationsRead);
 router.patch("/notifications/:id/read", markNotificationRead);
 router.get("/departments", getDepartments);
+router.get("/department-members", getDepartmentMembers);
 
 // ── Activities ────────────────────────────────────────────────────────────────
 router.get("/activities", getActivities);

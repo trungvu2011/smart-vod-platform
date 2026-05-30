@@ -4,6 +4,7 @@ export interface CreateRoomPayload {
   displayName: string;
   maxParticipants?: number;
   invitedDepartments?: string[];
+  invitedUserIds?: string[];
 }
 
 export interface MeetingRoomResponse {

@@ -23,6 +23,7 @@ video-worker/whisper-env/
 
 # Local utility workspace
 my-api-test/
+api-gateway/scripts/demo-vietnamese-sources.json
 
 # OS / editors
 .DS_Store
@@ -33,3 +34,5 @@ Thumbs.db
 # Local keys/certs
 *.pem
 *.key
+
+local-*

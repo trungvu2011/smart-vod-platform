@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Lock, Globe } from "lucide-react";
+import { X } from "lucide-react";
 import { playlistApi } from "../../api/playlistApi";
 import type { Playlist } from "../../types";
 
@@ -8,9 +8,11 @@ interface CreatePlaylistModalProps {
   onCreated: (playlist: Playlist) => void;
 }
 
-export default function CreatePlaylistModal({ onClose, onCreated }: CreatePlaylistModalProps) {
+export default function CreatePlaylistModal({
+  onClose,
+  onCreated,
+}: CreatePlaylistModalProps) {
   const [name, setName] = useState("");
-  const [isPrivate, setIsPrivate] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -24,7 +26,7 @@ export default function CreatePlaylistModal({ onClose, onCreated }: CreatePlayli
     setLoading(true);
 
     try {
-      const playlist = await playlistApi.createPlaylist(name.trim(), isPrivate);
+      const playlist = await playlistApi.createPlaylist(name.trim(), false);
       onCreated(playlist);
       onClose();
     } catch (err: any) {
@@ -38,7 +40,9 @@ export default function CreatePlaylistModal({ onClose, onCreated }: CreatePlayli
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-wp-surface-highest/80 backdrop-blur-sm animate-fade-in">
       <div className="bg-wp-surface-container-low border border-wp-outline/20 rounded-wp-xl w-full max-w-md overflow-hidden shadow-wp-ambient animate-slide-up">
         <div className="flex items-center justify-between px-5 py-4 border-b border-wp-outline/10">
-          <h2 className="text-lg font-semibold text-wp-on-surface">Create New Playlist</h2>
+          <h2 className="text-lg font-semibold text-wp-on-surface">
+            Create New Playlist
+          </h2>
           <button
             onClick={onClose}
             className="p-1 text-wp-on-surface-variant hover:text-wp-on-surface hover:bg-wp-surface-container-high rounded-full transition-colors"
@@ -66,37 +70,6 @@ export default function CreatePlaylistModal({ onClose, onCreated }: CreatePlayli
               className="w-full px-3 py-2 bg-wp-surface-container-highest border border-wp-outline/20 rounded-lg text-sm text-wp-on-surface placeholder-wp-outline focus:border-wp-primary focus:ring-1 focus:ring-wp-primary transition-all outline-none"
               autoFocus
             />
-          </div>
-
-          <div className="space-y-2 pt-1">
-            <span className="text-sm font-medium text-wp-on-surface block">Privacy</span>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setIsPrivate(false)}
-                className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border text-sm transition-all ${
-                  !isPrivate
-                    ? "bg-wp-primary-container/20 border-wp-primary text-wp-primary shadow-wp-glow shadow-wp-primary/10"
-                    : "border-wp-outline/20 text-wp-on-surface-variant hover:bg-wp-surface-container-high"
-                }`}
-              >
-                <Globe size={18} />
-                <span className="font-medium">Shared</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsPrivate(true)}
-                className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border text-sm transition-all ${
-                  isPrivate
-                    ? "bg-wp-primary-container/20 border-wp-primary text-wp-primary shadow-wp-glow shadow-wp-primary/10"
-                    : "border-wp-outline/20 text-wp-on-surface-variant hover:bg-wp-surface-container-high"
-                }`}
-              >
-                <Lock size={18} />
-                <span className="font-medium">Private</span>
-              </button>
-            </div>
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-wp-outline/10">

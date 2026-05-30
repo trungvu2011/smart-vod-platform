@@ -33,6 +33,10 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(days / 30)} month${Math.floor(days / 30) > 1 ? 's' : ''} ago`;
 }
 
+function fallbackThumbnail(videoId: string): string {
+  return `https://img.youtube.com/vi/70j3UJO-_uY/hqdefault.jpg#${videoId}`;
+}
+
 export default function VideoCard({ video, size = 'md', showChannel = true, progress }: VideoCardProps) {
   const sizeClasses = {
     sm: 'max-w-[200px]',
@@ -48,10 +52,16 @@ export default function VideoCard({ video, size = 'md', showChannel = true, prog
       {/* Thumbnail */}
       <div className="relative aspect-video rounded-wp-lg overflow-hidden bg-wp-surface-lowest mb-3">
         <img
-          src={video.thumbnailUrl}
+          src={video.thumbnailUrl || fallbackThumbnail(video.id)}
           alt={video.title}
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           loading="lazy"
+          onError={(event) => {
+            const img = event.currentTarget;
+            if (img.src !== fallbackThumbnail(video.id)) {
+              img.src = fallbackThumbnail(video.id);
+            }
+          }}
         />
         {/* Duration badge */}
         <span className="absolute bottom-2 right-2 px-1.5 py-0.5 text-xs font-medium

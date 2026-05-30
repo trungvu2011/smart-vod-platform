@@ -9,6 +9,9 @@
     "seed:demo": "node scripts/seed-demo-content.js",
     "seed:youtube": "node scripts/seed-youtube-metadata.js",
     "seed:youtube:clean": "node scripts/seed-youtube-metadata.js --clean",
+    "seed:vietnamese-demo": "node scripts/reset-vietnamese-demo.js",
+    "seed:vietnamese-metadata-only": "node scripts/seed-vietnamese-metadata-only.js",
+    "demo:reprocess-anchors-ai": "node scripts/reprocess-demo-anchors-ai.js",
     "seed:master": "node scripts/seed-master.js",
     "search:reindex": "node scripts/reindex-videos.js"
   },

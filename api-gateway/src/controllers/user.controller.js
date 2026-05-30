@@ -68,6 +68,19 @@ const getDepartments = async (req, res, next) => {
   }
 };
 
+// [GET] /api/users/department-members
+const getDepartmentMembers = async (req, res, next) => {
+  try {
+    const departments = await userService.getDepartmentMembers();
+    res.status(200).json({
+      message: "Department members retrieved successfully.",
+      departments,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // [GET] /api/users/notifications/stream — SSE endpoint
 const streamNotifications = (req, res) => {
   // Auth via query param (EventSource không hỗ trợ custom headers)
@@ -209,6 +222,7 @@ module.exports = {
   getLikedVideos,
   getNotifications,
   getDepartments,
+  getDepartmentMembers,
   streamNotifications,
   getActivities,
   getSessions,

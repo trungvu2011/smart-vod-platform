@@ -150,7 +150,7 @@ const cleanChildPlaylist = (filePath) => {
 };
 
 const processVideo = async (job) => {
-  const { videoId, originalFilename, isMeetingRecording, shouldGenerateThumbnail } =
+  const { videoId, originalFilename, isMeetingRecording, shouldGenerateThumbnail, skipAi } =
     job.data;
   const bucketName = process.env.MINIO_BUCKET_NAME;
 
@@ -275,7 +275,7 @@ const processVideo = async (job) => {
     }
 
     let aiResult = null;
-    if (!isMeetingRecording && hasAudioStream) {
+    if (!isMeetingRecording && !skipAi && hasAudioStream) {
       console.log("[WORKER] [4/4] Dang chay AI pipeline (Whisper + Summary)...");
       aiResult = await aiService.runLocalWhisper(
         inputFilePath,
@@ -283,6 +283,9 @@ const processVideo = async (job) => {
         minioClient,
         job,
       );
+    } else if (skipAi) {
+      console.log("[WORKER] [4/4] Bo qua AI pipeline theo cau hinh job.");
+      await job.updateProgress(95);
     } else if (!hasAudioStream) {
       console.log("[WORKER] [4/4] Bo qua AI pipeline vi video khong co audio.");
       await job.updateProgress(95);

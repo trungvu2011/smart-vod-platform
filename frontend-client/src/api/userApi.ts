@@ -1,5 +1,5 @@
 import api from './axios';
-import type { DepartmentOption, HistoryItem, Video, User, Notification } from '../types';
+import type { DepartmentOption, DepartmentWithMembers, HistoryItem, Video, User, Notification } from '../types';
 
 export const userApi = {
   getMe: async () => {
@@ -47,6 +47,11 @@ export const userApi = {
 
   getDepartments: async () => {
     const res = await api.get<{ departments: DepartmentOption[] }>('/users/departments');
+    return res.data.departments;
+  },
+
+  getDepartmentMembers: async () => {
+    const res = await api.get<{ departments: DepartmentWithMembers[] }>('/users/department-members');
     return res.data.departments;
   },
 

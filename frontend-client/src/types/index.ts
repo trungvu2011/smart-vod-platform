@@ -143,6 +143,17 @@ export interface DepartmentOption {
   userCount: number;
 }
 
+export interface DepartmentMember {
+  id: string;
+  fullName: string;
+  avatarUrl?: string;
+  title?: string;
+}
+
+export interface DepartmentWithMembers extends DepartmentOption {
+  users: DepartmentMember[];
+}
+
 // ============================
 // Meeting Types
 // ============================

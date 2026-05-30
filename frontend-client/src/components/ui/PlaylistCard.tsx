@@ -13,6 +13,10 @@ function formatCount(n?: number): string {
   return `${n} video${n !== 1 ? 's' : ''}`;
 }
 
+function fallbackThumbnail(playlistId: string): string {
+  return `https://img.youtube.com/vi/70j3UJO-_uY/hqdefault.jpg#${playlistId}`;
+}
+
 export default function PlaylistCard({ playlist, progress }: PlaylistCardProps) {
   const itemCount = playlist._count?.items ?? playlist.items?.length ?? 0;
   const hasProgress = progress !== undefined && progress > 0;
@@ -46,9 +50,15 @@ export default function PlaylistCard({ playlist, progress }: PlaylistCardProps) 
         {coverImage ? (
           <>
             <img
-              src={coverImage}
+              src={coverImage || fallbackThumbnail(playlist.id)}
               alt={playlist.name}
               className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+              onError={(event) => {
+                const img = event.currentTarget;
+                if (img.src !== fallbackThumbnail(playlist.id)) {
+                  img.src = fallbackThumbnail(playlist.id);
+                }
+              }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent" />
           </>

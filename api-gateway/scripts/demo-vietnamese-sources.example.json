@@ -1,0 +1,39 @@
+{
+  "sources": [
+    {
+      "source": "https://youtu.be/70j3UJO-_uY?si=wvH6DiNsImzgl0h9",
+      "title": "Engineering Training - Nen tang ky thuat phan 1",
+      "description": "Video nguon Engineering dung lam anchor video cho du lieu demo Smart VOD.",
+      "category": "Engineering",
+      "authorized": true
+    },
+    {
+      "source": "https://youtu.be/PTXkJbkGtUw?si=Gekwd9jqlijARUlk",
+      "title": "Engineering Training - Nen tang ky thuat phan 2",
+      "description": "Video nguon Engineering thu hai dung lam anchor video cho du lieu demo Smart VOD.",
+      "category": "Engineering",
+      "authorized": true
+    },
+    {
+      "source": "https://youtu.be/prBFBAh46NM?si=J5e3fPYtucZ55_wF",
+      "title": "Security Training - An toan thong tin co ban",
+      "description": "Video nguon Security dung lam anchor video cho du lieu demo Smart VOD.",
+      "category": "Security",
+      "authorized": true
+    },
+    {
+      "source": "https://youtu.be/VV0kaiZI6ik?si=IejaJFkxqQ4tT0FY",
+      "title": "Operations Training - Van hanh va giam sat he thong",
+      "description": "Video nguon Operations dung lam anchor video cho du lieu demo Smart VOD.",
+      "category": "Operations",
+      "authorized": true
+    },
+    {
+      "source": "https://youtu.be/_54cN5BkONg?si=sfxBnlyM1vu-_XaC",
+      "title": "Marketing Training - Noi dung va chien luoc truyen thong",
+      "description": "Video nguon Marketing dung lam anchor video cho du lieu demo Smart VOD.",
+      "category": "Marketing",
+      "authorized": true
+    }
+  ]
+}

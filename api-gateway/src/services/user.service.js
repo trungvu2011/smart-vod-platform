@@ -134,6 +134,44 @@ const getDepartments = async () => {
     .sort((a, b) => a.name.localeCompare(b.name, "vi"));
 };
 
+const getDepartmentMembers = async () => {
+  const users = await prisma.user.findMany({
+    where: {
+      status: "ACTIVE",
+      department: { not: null },
+    },
+    select: {
+      id: true,
+      fullName: true,
+      avatarUrl: true,
+      title: true,
+      department: true,
+    },
+    orderBy: [{ department: "asc" }, { fullName: "asc" }],
+  });
+
+  const grouped = new Map();
+  for (const user of users) {
+    const department = user.department?.trim();
+    if (!department) continue;
+    if (!grouped.has(department)) grouped.set(department, []);
+    grouped.get(department).push({
+      id: user.id,
+      fullName: user.fullName,
+      avatarUrl: user.avatarUrl,
+      title: user.title,
+    });
+  }
+
+  return Array.from(grouped.entries())
+    .map(([name, members]) => ({
+      name,
+      userCount: members.length,
+      users: members,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, "vi"));
+};
+
 const getActivities = async (userId) => {
   // Model Activity chưa có trong schema — trả về array rỗng
   return [];
@@ -310,6 +348,7 @@ module.exports = {
   getLikedVideos,
   getNotifications,
   getDepartments,
+  getDepartmentMembers,
   getActivities,
   getSessions,
   getMe,

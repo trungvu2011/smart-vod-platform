@@ -68,33 +68,53 @@ const normalizeDepartments = (departments) => {
   return [...new Set(normalized)];
 };
 
-const notifyInvitedDepartments = async ({
+const normalizeUserIds = (userIds) => {
+  if (!Array.isArray(userIds)) return [];
+  const normalized = userIds
+    .filter((userId) => typeof userId === "string")
+    .map((userId) => userId.trim())
+    .filter(Boolean);
+  return [...new Set(normalized)];
+};
+
+const notifyInvitations = async ({
   hostId,
   hostName,
   roomName,
   displayName,
   invitedDepartments,
+  invitedUserIds,
 }) => {
   const departments = normalizeDepartments(invitedDepartments);
-  if (departments.length === 0) return 0;
+  const userIds = normalizeUserIds(invitedUserIds);
+  if (departments.length === 0 && userIds.length === 0) return 0;
 
-  const departmentSet = new Set(departments);
-  const candidateUsers = await prisma.user.findMany({
-    where: {
-      status: "ACTIVE",
-      id: { not: hostId },
-      department: { not: null },
-    },
-    select: {
-      id: true,
-      department: true,
-    },
-  });
+  const usersByDept = departments.length
+    ? await prisma.user.findMany({
+        where: {
+          status: "ACTIVE",
+          id: { not: hostId },
+          department: { in: departments },
+        },
+        select: { id: true },
+      })
+    : [];
 
-  const invitedUsers = candidateUsers.filter((user) => {
-    const department = user.department?.trim();
-    return department && departmentSet.has(department);
-  });
+  const usersById = userIds.length
+    ? await prisma.user.findMany({
+        where: {
+          status: "ACTIVE",
+          id: { in: userIds, not: hostId },
+        },
+        select: { id: true },
+      })
+    : [];
+
+  const invitedUserIdSet = new Set([
+    ...usersByDept.map((user) => user.id),
+    ...usersById.map((user) => user.id),
+  ]);
+  const invitedUsers = Array.from(invitedUserIdSet).map((id) => ({ id }));
 
   const results = await Promise.allSettled(
     invitedUsers.map(async (user) => {
@@ -342,6 +362,7 @@ const createRoom = async (
   displayName,
   maxParticipants = 50,
   invitedDepartments = [],
+  invitedUserIds = [],
 ) => {
   if (!displayName) {
     const err = new Error("Vui lòng nhập tên phòng họp!");
@@ -400,12 +421,13 @@ const createRoom = async (
 
   // 4. Generate token cho host
   const token = await generateToken(userId, user.fullName, roomName, true);
-  const notificationCount = await notifyInvitedDepartments({
+  const notificationCount = await notifyInvitations({
     hostId: userId,
     hostName: user.fullName,
     roomName,
     displayName,
     invitedDepartments,
+    invitedUserIds,
   });
 
   return {
