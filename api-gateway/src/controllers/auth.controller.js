@@ -4,7 +4,15 @@ const authService = require("../services/auth.service");
 const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-    const result = await authService.login(email, password);
+
+    // Thu thập thông tin thiết bị/IP để lưu phiên đăng nhập
+    const device = req.headers["user-agent"] || "Unknown device";
+    const location =
+      (req.headers["x-forwarded-for"] || "").split(",")[0].trim() ||
+      req.ip ||
+      "Unknown";
+
+    const result = await authService.login(email, password, { device, location });
 
     res.status(200).json({
       message: "Login successful.",
